@@ -493,9 +493,12 @@ public:
         return false;
     }
 
+    /*
+        Returns the "other" Ledger key for a given key. "Other" means that for a payment key
+        we return the corresponding change key and vice versa.
+    */
     bool GetOtherLedgerKey(const CKeyID &address, CLedgerKey &ledgerKeyOut, bool isChange) const
     {
-        std::cout << "Address: " << address.GetHex() << std::endl;
         {
             LOCK(cs_LedgerKeyStore);
             std::map<CKeyID, CLedgerKey> ::const_iterator mi = ledgerKeys.find(address);
@@ -523,7 +526,7 @@ public:
         return false;
     }
 
-    bool IsLedgerChangeKey(const CKeyID &address) 
+    bool IsLedgerChangeKey(const CKeyID &address) const
     {
         CLedgerKey ledgerKey;
         if (GetLedgerKey(address, ledgerKey))

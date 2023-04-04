@@ -1439,6 +1439,10 @@ void CWallet::AvailableCoins(const ITxDB& txdb, vector<COutput>& vCoins, bool fO
 
                             CKeyID changeLedgerKeyID;
                             ((CBitcoinAddress)destination).GetKeyID(changeLedgerKeyID);
+                            // If the key is not a change key, we can skip it since it's entry name didn't match strFromAccount.
+                            if (!this->IsLedgerChangeKey(changeLedgerKeyID)) {
+                                continue;
+                            }
 
                             CLedgerKey ledgerPaymentKey;
                             if (!this->GetOtherLedgerKey(changeLedgerKeyID, ledgerPaymentKey, true)) {
@@ -2209,29 +2213,61 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     dPriority += (double)nCredit * pcoin.first->GetDepthInMainChain(txdb, bestBlockHash);
                 }
 
+                // check if we have some Ledger inputs and validate them
                 auto hasNonLedgerInputKeys = false;
-                boost::optional<CScript> ledgerInputKey;
+                boost::optional<CTxDestination> ledgerInputDestination;
                 for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
-                    if (!IsMineCheck(::IsMine(*this, pcoin.first->vout[pcoin.second].scriptPubKey), ISMINE_LEDGER)) {
+                    auto coinScriptPubKey = pcoin.first->vout[pcoin.second].scriptPubKey;
+
+                    if (!IsMineCheck(::IsMine(*this, coinScriptPubKey), ISMINE_LEDGER)) {
                         hasNonLedgerInputKeys = true;
                         continue;
                     }
 
-                    if (!ledgerInputKey) {
-                        ledgerInputKey = pcoin.first->vout[pcoin.second].scriptPubKey;
+                    // Ledger coins must belong to a single address index so we need to store the first
+                    // encountered address. We allow combining payment and change addresses from the same
+                    // address index though.
+                    if (!ledgerInputDestination) {
+                        CTxDestination destination;
+                        if (!ExtractDestination(txdb, coinScriptPubKey, destination)) {
+                            NLog.write(b_sev::err, "Failed to extract Ledger coin destination.");
+                            CreateErrorMsg(errorMsg, "Failed to extract Ledger coin destination.");
+                            return false;
+                        }
+                        ledgerInputDestination = destination;
                         continue;
                     }
 
-                    if (ledgerInputKey != pcoin.first->vout[pcoin.second].scriptPubKey) {
-                        NLog.write(b_sev::err,
-                                   "Ledger transactions can only contain inputs belonging to one address.");
-                        CreateErrorMsg(errorMsg,
-                                       "Ledger transactions can only contain inputs belonging to one address.");
+                    CTxDestination coinDestination;
+                    if (!ExtractDestination(txdb, coinScriptPubKey, coinDestination)) {
+                        NLog.write(b_sev::err, "Failed to extract coin destination.");
+                        CreateErrorMsg(errorMsg, "Failed to extract coin destination.");
+                        return false;
+                    }
+
+                    auto coinKeyID = boost::get<CKeyID>(coinDestination);
+                    auto ledgerInputKeyID = boost::get<CKeyID>(ledgerInputDestination.get());
+
+                    // If the coin belongs to the same address as the previous inputs, it's valid.
+                    if (ledgerInputKeyID == coinKeyID) {
+                        continue;
+                    }
+                    // Otherwise the coin might also belong to the "other" address so we need to check for that.
+                    CLedgerKey otherLedgerKey;
+                    if (!this->GetOtherLedgerKey(ledgerInputKeyID, otherLedgerKey, this->IsLedgerChangeKey(ledgerInputKeyID))) {
+                        NLog.write(b_sev::err, "Other Ledger key found.");
+                        CreateErrorMsg(errorMsg, "Other Ledger key found.");
+                        return false;
+                    }
+                    // if the coin doesn't belong even to the other address, it's invalid
+                    if (otherLedgerKey.vchPubKey.GetID() != coinKeyID) {
+                        NLog.write(b_sev::err, "Ledger transactions can only contain inputs belonging to one address.");
+                        CreateErrorMsg(errorMsg, "Ledger transactions can only contain inputs belonging to one address.");
                         return false;
                     }
                 }
 
-                if (!!ledgerInputKey && !wtxNew.fLedgerTx) {
+                if (!!ledgerInputDestination && !wtxNew.fLedgerTx) {
                         NLog.write(b_sev::err,
                                    "Non-Ledger transactions can not contain ledger inputs.");
                         CreateErrorMsg(errorMsg,
@@ -2336,18 +2372,9 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     if (coinControl && !boost::get<CNoDestination>(&coinControl->destChange)) {
                         scriptChange.SetDestination(coinControl->destChange);
                     } else if (wtxNew.fLedgerTx) {
-                        CTxDestination destChange;
-                        if (!ExtractDestination(txdb, ledgerInputKey.get(), destChange)) {
-                            NLog.write(b_sev::err,
-                                       "Invalid Ledger destination.");
-                            CreateErrorMsg(errorMsg,
-                                           "Invalid Ledger destination.");
-                            return false;
-                        }
-                         
-                        auto destinationKeyID = boost::get<CKeyID>(destChange);
+                        auto destinationKeyID = boost::get<CKeyID>(ledgerInputDestination.get());
                         if (IsLedgerChangeKey(destinationKeyID)) {
-                            scriptChange.SetDestination(destChange);
+                            scriptChange.SetDestination(ledgerInputDestination.get());
                         } else {
                             CLedgerKey changeKey;
                             if (!this->GetOtherLedgerKey(destinationKeyID, changeKey, false)) {
