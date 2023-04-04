@@ -1,6 +1,7 @@
 #include "ledger/bip32.h"
 #include "ledger/tx.h"
 #include "ledger/bytes.h"
+#include "ledger/ledger.h"
 
 #include "itxdb.h"
 #include "wallet.h"
@@ -23,6 +24,7 @@ namespace ledgerbridge
             LedgerBridge();
             ~LedgerBridge();
             
+            ledger::bytes GetPublicKey(ledger::Ledger& ledger, const ledger::Bip32Path path, bool display);
             ledger::bytes GetPublicKey(const ledger::Bip32Path path, bool display);
             ledger::bytes GetPublicKey(int account, bool isChange, int index, bool display);
             ledger::bytes GetAccountPublicKey(int account, bool display);

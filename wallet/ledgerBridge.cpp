@@ -10,22 +10,25 @@
 
 namespace ledgerbridge
 {   
-    const ledger::Transport::TransportType TRANSPORT_TYPE = ledger::Transport::TransportType::SPECULOS;    
+    const ledger::Transport::TransportType TRANSPORT_TYPE = ledger::Transport::TransportType::HID;
 
     LedgerBridge::LedgerBridge() {}
 
     LedgerBridge::~LedgerBridge() {}
 
+    ledger::bytes LedgerBridge::GetPublicKey(ledger::Ledger& ledger, const ledger::Bip32Path path, bool display)
+    {
+        auto result = ledger.GetPublicKey(path, display);
+
+        return ledger::utils::CompressPubKey(std::get<0>(result));
+    }
+
     ledger::bytes LedgerBridge::GetPublicKey(const ledger::Bip32Path path, bool display)
     {
         ledger::Ledger ledger(TRANSPORT_TYPE);
         ledger.open();
-
-        auto result = ledger.GetPublicKey(path, display);
-
-        ledger.close();
-
-        return ledger::utils::CompressPubKey(std::get<0>(result));
+        
+        return GetPublicKey(ledger, path, display);
     }
 
     ledger::bytes LedgerBridge::GetPublicKey(int account, bool isChange, int index, bool display)
@@ -81,7 +84,7 @@ namespace ledgerbridge
         for (auto sigIndex = 0; sigIndex < signTxResults.size(); sigIndex++) {
             auto signature = std::get<1>(signTxResults[sigIndex]);
 
-            auto pubKey = CPubKey(GetPublicKey(signaturePaths[sigIndex], false));
+            auto pubKey = CPubKey(GetPublicKey(ledger, signaturePaths[sigIndex], false));
 
             // hash type
             signature.push_back(0x01);
@@ -94,8 +97,6 @@ namespace ledgerbridge
                 throw std::exception();
             }
         }
-
-        ledger.close();
     }
 
     ledger::Tx LedgerBridge::ToLedgerTx(const CTransaction &tx)
