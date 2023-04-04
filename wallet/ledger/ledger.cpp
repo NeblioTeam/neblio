@@ -64,7 +64,6 @@ namespace ledger
 
 	bytes Ledger::GetTrustedInputRaw(bool firstRound, const bytes &transactionData)
 	{
-        // TODO GK - refactor transport to throw instead of returning error
 		auto result = transport_->exchange(APDU::CLA, APDU::INS_GET_TRUSTED_INPUT, firstRound ? 0x00 : 0x80, 0x00, transactionData);
 		auto err = std::get<0>(result);
 		auto buffer = std::get<1>(result);

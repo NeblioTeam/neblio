@@ -1555,7 +1555,6 @@ void CWallet::AvailableCoinsForStaking(const ITxDB& txdb, vector<COutput>& vCoin
                 if (IsSpent(pcoin->GetHash(), i, txdb, bestBlockHash))
                     continue;
 
-                // TODO GK: ledger?
                 if (!(mine & ISMINE_SPENDABLE_STAKEABLE) && !(mine & ISMINE_SPENDABLE))
                     continue;
 

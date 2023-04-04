@@ -130,7 +130,6 @@ Tx DeserializeTransaction(const bytes& transaction)
     {
         TrustedInput trustedInput;
 
-        // TODO GK - direct assignment ok?
         utils::AppendVector(trustedInput.serialized, serializedTrustedInput);
 
         auto offset = 0;
