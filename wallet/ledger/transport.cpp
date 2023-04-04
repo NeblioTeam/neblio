@@ -19,26 +19,26 @@ namespace ledger
 		}
 	}
 
-	Error Transport::open()
+	void Transport::open()
 	{
 		return comm_->open();
 	}
 
-	std::tuple<ledger::Error, bytes> Transport::exchange(uint8_t cla, uint8_t ins, uint8_t p1, uint8_t p2, const bytes &cdata)
+	bytes Transport::exchange(uint8_t cla, uint8_t ins, uint8_t p1, uint8_t p2, const bytes &cdata)
 	{
 		int length = this->send(cla, ins, p1, p2, cdata);
 		if (length < 0)
-			return {Error::DEVICE_DATA_SEND_FAIL, {}};
+			throw LedgerException(ErrorCode::DEVICE_DATA_SEND_FAIL);
 
 		bytes buffer;
 		int sw = this->recv(buffer);
 		if (sw < 0)
-			return {Error::DEVICE_DATA_RECV_FAIL, {}};
+			throw LedgerException(ErrorCode::DEVICE_DATA_RECV_FAIL);
 
 		if (sw != 0x9000)
-			return {Error::APDU_INVALID_CMD, {}};
+			throw LedgerException(ErrorCode::APDU_INVALID_CMD);
 
-		return {Error::SUCCESS, buffer};
+		return buffer;
 	}
 
 	void Transport::close() noexcept

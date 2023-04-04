@@ -17,13 +17,13 @@
 
 namespace ledger
 {
-	Error Speculos::open()
+	void Speculos::open()
 	{
 		if (!opened_)
 		{
 			auto _sockfd = socket(AF_INET, SOCK_STREAM, 0);
 			if (_sockfd < 0)
-				return Error::DEVICE_OPEN_FAIL;
+				throw LedgerException(ErrorCode::DEVICE_OPEN_FAIL);
 
 			auto server = "localhost";
 			auto port = "9999";
@@ -33,13 +33,11 @@ namespace ledger
 			serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 			serv_addr.sin_port = htons(9999);
 			if (connect(_sockfd, (sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-				return Error::DEVICE_OPEN_FAIL;
+				throw LedgerException(ErrorCode::DEVICE_OPEN_FAIL);
 
 			this->sockfd = _sockfd;
 			opened_ = true;
 		}
-
-		return Error::SUCCESS;
 	}
 
 	int Speculos::send(const bytes &data)
@@ -86,6 +84,7 @@ namespace ledger
 		return opened_;
 	}
 
+	// TODO GK - remove and check if other clean up is needed
 	std::vector<std::string> Speculos::enumerate_devices(unsigned short vendor_id) noexcept
 	{
 		std::vector<std::string> devices;

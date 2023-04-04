@@ -16,17 +16,7 @@ namespace ledger
 
 	Ledger::~Ledger() { transport_->close(); }
 
-	void Ledger::open()
-	{
-		std::cout << "Opening Ledger connection." << std::endl;
-		auto openError = transport_->open();
-		if (openError != ledger::Error::SUCCESS)
-		{
-			// TODO GK - what should we be throwing? (in the whole file)
-			throw openError;
-		}
-		std::cout << "Ledger connection opened." << std::endl;
-	}
+	void Ledger::open() { transport_->open(); }
 
 	std::tuple<bytes, std::string, bytes> Ledger::GetPublicKey(const Bip32Path path, bool confirm)
 	{
@@ -37,11 +27,7 @@ namespace ledger
 		utils::AppendVector(payload, pathBytes);
 
 		// 0x00 = P2_LEGACY (base58)
-		auto result = transport_->exchange(APDU::CLA, APDU::INS_GET_PUBLIC_KEY, confirm, 0x00, payload);
-		auto err = std::get<0>(result);
-		auto buffer = std::get<1>(result);
-		if (err != Error::SUCCESS)
-			throw err;
+		auto buffer = transport_->exchange(APDU::CLA, APDU::INS_GET_PUBLIC_KEY, confirm, 0x00, payload);
 
 		auto offset = 1;
 		auto pubKeyLen = (int)buffer[offset] * 16 + 1;
@@ -57,20 +43,14 @@ namespace ledger
 		offset += 32;
 
 		if (offset != buffer.size())
-			throw Error::UNRECOGNIZED_ERROR;
+			throw LedgerException(ErrorCode::UNRECOGNIZED_ERROR);
 
 		return {pubKey, std::string(address.begin(), address.end()), chainCode};
 	}
 
 	bytes Ledger::GetTrustedInputRaw(bool firstRound, const bytes &transactionData)
 	{
-		auto result = transport_->exchange(APDU::CLA, APDU::INS_GET_TRUSTED_INPUT, firstRound ? 0x00 : 0x80, 0x00, transactionData);
-		auto err = std::get<0>(result);
-		auto buffer = std::get<1>(result);
-		if (err != Error::SUCCESS)
-			throw err;
-
-        return buffer;
+		return transport_->exchange(APDU::CLA, APDU::INS_GET_TRUSTED_INPUT, firstRound ? 0x00 : 0x80, 0x00, transactionData);
 	}
 
 	bytes Ledger::GetTrustedInput(const Tx& utxoTx, uint32_t indexLookup)
@@ -131,27 +111,15 @@ namespace ledger
 			changePathData.push_back(serializedChangePath.size() / 4);
 			utils::AppendVector(changePathData, serializedChangePath);
 
-			auto result = transport_->exchange(APDU::CLA, ins, p1, p2, changePathData);
-			auto err = std::get<0>(result);
-			auto buffer = std::get<1>(result);
-			if (err != Error::SUCCESS)
-				throw err;
+			transport_->exchange(APDU::CLA, ins, p1, p2, changePathData);
 		}
 		else
 		{
-			auto result = transport_->exchange(APDU::CLA, ins, p1, p2, {0x00});
-			auto err = std::get<0>(result);
-			auto buffer = std::get<1>(result);
-			if (err != Error::SUCCESS)
-				throw err;
+			transport_->exchange(APDU::CLA, ins, p1, p2, {0x00});
 		}
 
 		p1 = 0x00;
-		auto result = transport_->exchange(APDU::CLA, ins, p1, p2, utils::CreateVarint(tx.outputs.size()));
-		auto err = std::get<0>(result);
-		auto buffer = std::get<1>(result);
-		if (err != Error::SUCCESS)
-			throw err;
+		transport_->exchange(APDU::CLA, ins, p1, p2, utils::CreateVarint(tx.outputs.size()));
 
 		for (auto i = 0; i < tx.outputs.size(); i++)
 		{
@@ -163,11 +131,7 @@ namespace ledger
 			utils::AppendVector(outputData, utils::CreateVarint(output.script.size()));
 			utils::AppendVector(outputData, output.script);
 
-			auto result = transport_->exchange(APDU::CLA, ins, p1, p2, outputData);
-			auto err = std::get<0>(result);
-			auto buffer = std::get<1>(result);
-			if (err != Error::SUCCESS)
-				throw err;
+			transport_->exchange(APDU::CLA, ins, p1, p2, outputData);
 		}
 	}
 
@@ -182,11 +146,7 @@ namespace ledger
 		utils::AppendUint32(data, tx.time, true);
 		utils::AppendVector(data, utils::CreateVarint(trustedInputs.size()));
 
-		auto result = transport_->exchange(APDU::CLA, ins, p1, p2, data);
-		auto err = std::get<0>(result);
-		auto buffer = std::get<1>(result);
-		if (err != Error::SUCCESS)
-			throw err;
+		transport_->exchange(APDU::CLA, ins, p1, p2, data);
 
 		p1 = 0x80;
 		for (auto i = 0; i < trustedInputs.size(); i++)
@@ -200,21 +160,13 @@ namespace ledger
 			utils::AppendVector(_data, trustedInput.serialized);
 			utils::AppendVector(_data, utils::CreateVarint(_script.size()));
 
-			auto result = transport_->exchange(APDU::CLA, ins, p1, p2, _data);
-			auto err = std::get<0>(result);
-			auto buffer = std::get<1>(result);
-			if (err != Error::SUCCESS)
-				throw err;
+			transport_->exchange(APDU::CLA, ins, p1, p2, _data);
 
 			bytes scriptData;
 			utils::AppendVector(scriptData, _script);
 			utils::AppendUint32(scriptData, 0xffffffff, true);
 
-			result = transport_->exchange(APDU::CLA, ins, p1, p2, scriptData);
-			err = std::get<0>(result);
-			buffer = std::get<1>(result);
-			if (err != Error::SUCCESS)
-				throw err;
+			transport_->exchange(APDU::CLA, ins, p1, p2, scriptData);
 		}
 	}
 
@@ -258,12 +210,7 @@ namespace ledger
 			utils::AppendUint32(data, tx.locktime);
 			data.push_back(0x01);
 
-			auto result = transport_->exchange(APDU::CLA, ins, p1, p2, data);
-			auto err = std::get<0>(result);
-			auto buffer = std::get<1>(result);
-			if (err != Error::SUCCESS)
-				throw err;
-
+			auto buffer = transport_->exchange(APDU::CLA, ins, p1, p2, data);
 			if (buffer[0] & 0x01)
 			{
 				bytes data;

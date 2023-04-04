@@ -1,3 +1,4 @@
+#include "error.h"
 #include "tx.h"
 #include "utils.h"
 
@@ -136,12 +137,12 @@ Tx DeserializeTransaction(const bytes& transaction)
 
         auto trustedInputMagic = serializedTrustedInput[offset];
         if (trustedInputMagic != 0x32)
-            throw "Invalid trusted input magic";
+            throw LedgerException(ErrorCode::INVALID_TRUSTED_INPUT);
         offset += 1;
 
         auto zeroByte = serializedTrustedInput[offset];
         if (zeroByte != 0x00)
-            throw "Zero byte is not a zero byte";
+            throw LedgerException(ErrorCode::INVALID_TRUSTED_INPUT);
         offset += 1;
 
         trustedInput.random = utils::BytesToInt(utils::Splice(serializedTrustedInput, offset, 2));
@@ -160,7 +161,7 @@ Tx DeserializeTransaction(const bytes& transaction)
         offset += 8;
 
         if (offset != serializedTrustedInput.size())
-            throw "Leftover bytes in trusted input";
+            throw LedgerException(ErrorCode::INVALID_TRUSTED_INPUT);
 
         return trustedInput;
     }

@@ -4,7 +4,6 @@
 #include <vector>
 
 #include "bytes.h"
-#include "error.h"
 
 namespace ledger
 {
@@ -13,7 +12,7 @@ namespace ledger
 	public:
 		virtual ~Comm() = default;
 
-		virtual Error open() = 0;
+		virtual void open() = 0;
 		virtual int send(const bytes &data) = 0;
 		virtual int recv(bytes &rdata) = 0;
 		virtual void close() = 0;

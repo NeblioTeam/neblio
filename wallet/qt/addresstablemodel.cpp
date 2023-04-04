@@ -434,9 +434,9 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
             accountPubKeyBytes = ledgerBridge.GetPublicKey(account, false);
             paymentPubKeyBytes = ledgerBridge.GetPublicKey(account, false, index, true);
             changePubKeyBytes = ledgerBridge.GetPublicKey(account, true, index, false);
-        } catch (const ledger::Error& e) {
+        } catch (const ledger::LedgerException& e) {
             editStatus = LEDGER_ERROR;
-            ledgerError = e;
+            ledgerError = e.GetErrorCode();
             return QString();
         }
 
@@ -507,9 +507,8 @@ int AddressTableModel::lookupAddress(const QString& address) const
 std::string AddressTableModel::getLedgerErrorMessage() const {
     if (editStatus != LEDGER_ERROR)
         return "";
-    if (ledgerError == ledger::Error::SUCCESS)
-        return "Unknown error";
-    return ledger::error_message(ledgerError);
+
+    return ledger::LedgerException::GetMessage(ledgerError);
 }
 
 void AddressTableModel::emitDataChanged(int idx)

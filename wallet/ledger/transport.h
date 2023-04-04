@@ -17,8 +17,8 @@ namespace ledger
 		};
 
 		Transport(TransportType type);
-		Error open();
-		std::tuple<ledger::Error, bytes> exchange(uint8_t cla, uint8_t ins, uint8_t p1, uint8_t p2, const bytes &cdata);
+		void open();
+		bytes exchange(uint8_t cla, uint8_t ins, uint8_t p1, uint8_t p2, const bytes &cdata);
 		void close() noexcept;
 
 	private:

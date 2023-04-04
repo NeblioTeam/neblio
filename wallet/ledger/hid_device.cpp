@@ -6,29 +6,27 @@
 
 namespace ledger
 {
-	Error HID::open()
+	void HID::open()
 	{
 		if (!opened_)
 		{
 			auto devices = enumerate_devices(vendor_id_);
 			if (devices.empty())
 			{
-				return Error::DEVICE_NOT_FOUND;
+				throw LedgerException(ErrorCode::DEVICE_NOT_FOUND);
 			}
 
 			path_ = devices.at(0);
 			device_ = hid_open_path(path_.c_str());
 			if (!device_)
 			{
-				return Error::DEVICE_OPEN_FAIL;
+				throw LedgerException(ErrorCode::DEVICE_OPEN_FAIL);
 			}
 
 			hid_set_nonblocking(device_, true);
 
 			opened_ = true;
 		}
-
-		return Error::SUCCESS;
 	}
 
 	int HID::send(const bytes &data)

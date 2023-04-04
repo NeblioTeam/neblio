@@ -93,7 +93,7 @@ private:
     AddressTablePriv* priv;
     QStringList       columns;
     EditStatus        editStatus;
-    ledger::Error     ledgerError;
+    ledger::ErrorCode ledgerError;
 
     /** Notify listeners that data changed. */
     void emitDataChanged(int index);

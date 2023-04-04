@@ -9,7 +9,7 @@ namespace ledger
 	class Speculos final : public Comm
 	{
 	public:
-		Error open() override;
+		void open() override;
 		int send(const bytes &data) override;
 		int recv(bytes &rdata) override;
 		void close() noexcept override;

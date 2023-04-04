@@ -2526,8 +2526,8 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     try {
                         ledgerbridge::LedgerBridge ledgerBridge;
                         ledgerBridge.SignTransaction(txdb, *this, wtxNew, ledgerBridgeUtxos, nChange > 0);
-                    } catch (const ledger::Error e) {
-                        CreateErrorMsg(errorMsg, "Error while signing Ledger transaction: " + ledger::error_message(e));
+                    } catch (const ledger::LedgerException& e) {
+                        CreateErrorMsg(errorMsg, "Error while signing Ledger transaction: " + e.GetMessage());
                         return false;
                     }
                 }
