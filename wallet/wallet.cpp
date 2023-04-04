@@ -856,26 +856,6 @@ bool CWallet::IsChange(const ITxDB& txdb, const CTransaction& tx, const CTxOut& 
             return true;
     }
 
-    // for Ledger consider any outputs sent to the same address as change
-    {
-        LOCK(cs_wallet);
-
-        for (const auto& txin : tx.vin) {
-            map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
-            if (mi != mapWallet.end()) {
-                const CWalletTx& prev = (*mi).second;
-                auto previousOutput = prev.vout[txin.prevout.n];
-
-                CTxDestination outputAddress;
-                if (ExtractDestination(txdb, previousOutput.scriptPubKey, outputAddress)
-                        && ::IsMine(*this, outputAddress) == ISMINE_LEDGER
-                        && outputAddress == address) {
-                    return true;
-                }
-            }
-        }
-    }
-
     return false;
 }
 
