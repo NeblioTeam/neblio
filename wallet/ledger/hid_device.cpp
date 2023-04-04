@@ -8,24 +8,24 @@ namespace ledger
 {
 	void HID::open()
 	{
-		if (!opened_)
+		if (!opened)
 		{
-			auto devices = enumerate_devices(vendor_id_);
+			auto devices = enumerateDevices(vendorId);
 			if (devices.empty())
 			{
 				throw LedgerException(ErrorCode::DEVICE_NOT_FOUND);
 			}
 
-			path_ = devices.at(0);
-			device_ = hid_open_path(path_.c_str());
-			if (!device_)
+			path = devices.at(0);
+			device = hid_open_path(path.c_str());
+			if (!device)
 			{
 				throw LedgerException(ErrorCode::DEVICE_OPEN_FAIL);
 			}
 
-			hid_set_nonblocking(device_, true);
+			hid_set_nonblocking(device, true);
 
-			opened_ = true;
+			opened = true;
 		}
 	}
 
@@ -34,116 +34,116 @@ namespace ledger
 		if (data.empty())
 			return -1;
 
-		auto data_new = utils::IntToBytes(data.size(), 2);
-		data_new.insert(data_new.end(), data.begin(), data.end());
+		auto dataNew = utils::IntToBytes(data.size(), 2);
+		dataNew.insert(dataNew.end(), data.begin(), data.end());
 
 		size_t offset = 0;
-		size_t seq_idx = 0;
+		size_t seqIdx = 0;
 		size_t length = 0;
 
-		while (offset < data_new.size())
+		while (offset < dataNew.size())
 		{
 			// Header: channel (0x0101), tag (0x05), sequence index
 			bytes header{0x01, 0x01, 0x05};
 
-			auto seq_idx_bytes = utils::IntToBytes(seq_idx, 2);
-			header.insert(header.end(), seq_idx_bytes.begin(), seq_idx_bytes.end());
+			auto seqIdxBytes = utils::IntToBytes(seqIdx, 2);
+			header.insert(header.end(), seqIdxBytes.begin(), seqIdxBytes.end());
 
 			bytes::iterator it;
-			if (data_new.size() - offset < 64 - header.size())
+			if (dataNew.size() - offset < 64 - header.size())
 			{
-				it = data_new.end();
+				it = dataNew.end();
 			}
 			else
 			{
-				it = data_new.begin() + offset + 64 - header.size();
+				it = dataNew.begin() + offset + 64 - header.size();
 			}
 
-			bytes data_chunk{data_new.begin() + offset, it};
-			data_chunk.insert(data_chunk.begin(), header.begin(), header.end());
-			data_chunk.insert(data_chunk.begin(), 0x00);
+			bytes dataChunk{dataNew.begin() + offset, it};
+			dataChunk.insert(dataChunk.begin(), header.begin(), header.end());
+			dataChunk.insert(dataChunk.begin(), 0x00);
 
-			if (hid_write(device_, data_chunk.data(), data_chunk.size()) == -1)
+			if (hid_write(device, dataChunk.data(), dataChunk.size()) == -1)
 				return -1;
 
-			length += data_chunk.size();
+			length += dataChunk.size();
 			offset += 64 - header.size();
-			seq_idx += 1;
+			seqIdx += 1;
 		}
 
 		return length;
 	}
 
-	int HID::recv(bytes &rdata)
+	int HID::receive(bytes &rdata)
 	{
-		int seq_idx = 0;
+		int seqIdx = 0;
 		uint8_t buf[64];
 
-		hid_set_nonblocking(device_, false);
-		if (hid_read_timeout(device_, buf, sizeof(buf), timeout_ms_) <= 0)
+		hid_set_nonblocking(device, false);
+		if (hid_read_timeout(device, buf, sizeof(buf), timeoutMs) <= 0)
 			return -1;
-		hid_set_nonblocking(device_, true);
+		hid_set_nonblocking(device, true);
 
-		bytes data_chunk(buf, buf + sizeof(buf));
+		bytes dataChunk(buf, buf + sizeof(buf));
 
-		assert(data_chunk[0] == 0x01);
-		assert(data_chunk[1] == 0x01);
-		assert(data_chunk[2] == 0x05);
+		assert(dataChunk[0] == 0x01);
+		assert(dataChunk[1] == 0x01);
+		assert(dataChunk[2] == 0x05);
 
-		auto seq_idx_bytes = utils::IntToBytes(seq_idx, 2);
-		assert(seq_idx_bytes[0] == data_chunk[3]);
-		assert(seq_idx_bytes[1] == data_chunk[4]);
+		auto seqIdxBytes = utils::IntToBytes(seqIdx, 2);
+		assert(seqIdxBytes[0] == dataChunk[3]);
+		assert(seqIdxBytes[1] == dataChunk[4]);
 
-		auto data_len = utils::BytesToInt(bytes(data_chunk.begin() + 5, data_chunk.begin() + 7));
-		bytes data(data_chunk.begin() + 7, data_chunk.end());
+		auto dataLen = utils::BytesToInt(bytes(dataChunk.begin() + 5, dataChunk.begin() + 7));
+		bytes data(dataChunk.begin() + 7, dataChunk.end());
 
-		while (data.size() < data_len)
+		while (data.size() < dataLen)
 		{
-			uint8_t read_bytes[64];
-			if (hid_read_timeout(device_, read_bytes, sizeof(read_bytes), 1000) == -1)
+			uint8_t readBytes[64];
+			if (hid_read_timeout(device, readBytes, sizeof(readBytes), 1000) == -1)
 				return -1;
-			bytes tmp(read_bytes, read_bytes + sizeof(read_bytes));
+			bytes tmp(readBytes, readBytes + sizeof(readBytes));
 			data.insert(data.end(), tmp.begin() + 5, tmp.end());
 		}
 
-		auto sw = utils::BytesToInt(bytes(data.begin() + data_len - 2, data.begin() + data_len));
-		rdata = bytes(data.begin(), data.begin() + data_len - 2);
+		auto sw = utils::BytesToInt(bytes(data.begin() + dataLen - 2, data.begin() + dataLen));
+		rdata = bytes(data.begin(), data.begin() + dataLen - 2);
 
 		return sw;
 	}
 
 	void HID::close() noexcept
 	{
-		if (opened_)
+		if (opened)
 		{
-			hid_close(device_);
-			opened_ = false;
+			hid_close(device);
+			opened = false;
 		}
 		hid_exit();
 	}
 
-	bool HID::is_open() const
+	bool HID::isOpen() const
 	{
-		return opened_;
+		return opened;
 	}
 
-	std::vector<std::string> HID::enumerate_devices(unsigned short vendor_id) noexcept
+	std::vector<std::string> HID::enumerateDevices(unsigned short vendorId) noexcept
 	{
 		std::vector<std::string> devices;
 
-		struct hid_device_info *devs, *cur_dev;
+		struct hid_device_info *devs, *curDev;
 
-		devs = hid_enumerate(vendor_id, 0x0);
-		cur_dev = devs;
-		while (cur_dev)
+		devs = hid_enumerate(vendorId, 0x0);
+		curDev = devs;
+		while (curDev)
 		{
-			if (cur_dev->interface_number == 0 ||
+			if (curDev->interface_number == 0 ||
 				// MacOS specific
-				cur_dev->usage_page == 0xffa0)
+				curDev->usage_page == 0xffa0)
 			{
-				devices.emplace_back(cur_dev->path);
+				devices.emplace_back(curDev->path);
 			}
-			cur_dev = cur_dev->next;
+			curDev = curDev->next;
 		}
 		hid_free_enumeration(devs);
 

@@ -23,9 +23,9 @@ namespace ledger
 
 	private:
 		int send(uint8_t cla, uint8_t ins, uint8_t p1, uint8_t p2, const bytes &cdata);
-		int recv(bytes &rdata);
-		static bytes apdu_header(uint8_t cla, uint8_t ins, uint8_t p1, uint8_t p2, uint8_t lc);
+		int receive(bytes &rdata);
+		static bytes apduHeader(uint8_t cla, uint8_t ins, uint8_t p1, uint8_t p2, uint8_t lc);
 
-		std::unique_ptr<Comm> comm_;
+		std::unique_ptr<Comm> comm;
 	};
 } // namespace ledger

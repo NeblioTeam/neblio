@@ -19,7 +19,7 @@ namespace ledger
 {
 	void Speculos::open()
 	{
-		if (!opened_)
+		if (!opened)
 		{
 			auto _sockfd = socket(AF_INET, SOCK_STREAM, 0);
 			if (_sockfd < 0)
@@ -36,7 +36,7 @@ namespace ledger
 				throw LedgerException(ErrorCode::DEVICE_OPEN_FAIL);
 
 			this->sockfd = _sockfd;
-			opened_ = true;
+			opened = true;
 		}
 	}
 
@@ -51,7 +51,7 @@ namespace ledger
 		return result;
 	}
 
-	int Speculos::recv(bytes &rdata)
+	int Speculos::receive(bytes &rdata)
 	{
 		uint8_t lengthB[4];
 		if (read(sockfd, lengthB, sizeof(lengthB)) == -1)
@@ -72,39 +72,15 @@ namespace ledger
 
 	void Speculos::close() noexcept
 	{
-		if (opened_)
+		if (opened)
 		{
 			::close(sockfd);
-			opened_ = false;
+			opened = false;
 		}
 	}
 
-	bool Speculos::is_open() const
+	bool Speculos::isOpen() const
 	{
-		return opened_;
-	}
-
-	// TODO GK - remove and check if other clean up is needed
-	std::vector<std::string> Speculos::enumerate_devices(unsigned short vendor_id) noexcept
-	{
-		std::vector<std::string> devices;
-
-		struct hid_device_info *devs, *cur_dev;
-
-		devs = hid_enumerate(vendor_id, 0x0);
-		cur_dev = devs;
-		while (cur_dev)
-		{
-			if (cur_dev->interface_number == 0 ||
-				// MacOS specific
-				cur_dev->usage_page == 0xffa0)
-			{
-				devices.emplace_back(cur_dev->path);
-			}
-			cur_dev = cur_dev->next;
-		}
-		hid_free_enumeration(devs);
-
-		return devices;
+		return opened;
 	}
 } // namespace ledger

@@ -33,7 +33,7 @@ namespace ledger
 		void close();
 
 	private:
-		std::unique_ptr<Transport> transport_;
+		std::unique_ptr<Transport> transport;
 
 		bytes ProcessScriptBlocks(const bytes &script, uint32_t sequence);
 		bytes GetTrustedInput(const Tx &utxoTx, uint32_t indexLookup);

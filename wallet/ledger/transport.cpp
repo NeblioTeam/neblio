@@ -11,17 +11,17 @@ namespace ledger
 		switch (type)
 		{
 		case TransportType::HID:
-			comm_ = std::unique_ptr<HID>(new HID());
-			break;
+            comm = std::unique_ptr<HID>(new HID());
+            break;
 		case TransportType::SPECULOS:
-			comm_ = std::unique_ptr<Speculos>(new Speculos());
+            comm = std::unique_ptr<Speculos>(new Speculos());
 			break;
 		}
 	}
 
 	void Transport::open()
 	{
-		return comm_->open();
+        return comm->open();
 	}
 
 	bytes Transport::exchange(uint8_t cla, uint8_t ins, uint8_t p1, uint8_t p2, const bytes &cdata)
@@ -31,7 +31,7 @@ namespace ledger
 			throw LedgerException(ErrorCode::DEVICE_DATA_SEND_FAIL);
 
 		bytes buffer;
-		int sw = this->recv(buffer);
+		int sw = this->receive(buffer);
 		if (sw < 0)
 			throw LedgerException(ErrorCode::DEVICE_DATA_RECV_FAIL);
 
@@ -43,29 +43,29 @@ namespace ledger
 
 	void Transport::close() noexcept
 	{
-		return comm_->close();
+        return comm->close();
 	}
 
 	int Transport::send(uint8_t cla, uint8_t ins, uint8_t p1, uint8_t p2, const bytes &cdata)
 	{
-		if (!comm_->is_open())
+        if (!comm->isOpen())
 			return -1;
 
-		auto header = apdu_header(cla, ins, p1, p2, cdata.size());
+		auto header = apduHeader(cla, ins, p1, p2, cdata.size());
 		header.insert(header.end(), cdata.begin(), cdata.end());
 
-		return comm_->send(header);
+        return comm->send(header);
 	}
 
-	int Transport::recv(bytes &rdata)
+    int Transport::receive(bytes &rdata)
 	{
-		if (!comm_->is_open())
+        if (!comm->isOpen())
 			return -1;
 
-		return comm_->recv(rdata);
+        return comm->receive(rdata);
 	}
 
-	bytes Transport::apdu_header(uint8_t cla, uint8_t ins, uint8_t p1, uint8_t p2, uint8_t lc)
+    bytes Transport::apduHeader(uint8_t cla, uint8_t ins, uint8_t p1, uint8_t p2, uint8_t lc)
 	{
 		return bytes{cla, ins, p1, p2, lc};
 	}

@@ -11,17 +11,17 @@ namespace ledger
 	public:
 		void open() override;
 		int send(const bytes &data) override;
-		int recv(bytes &rdata) override;
+		int receive(bytes &rdata) override;
 		void close() noexcept override;
-		[[nodiscard]] bool is_open() const override;
+		[[nodiscard]] bool isOpen() const override;
 
 	private:
-		static std::vector<std::string> enumerate_devices(unsigned short vendor_id = 0x2c97) noexcept;
+		static std::vector<std::string> enumerateDevices(unsigned short vendor_id = 0x2c97) noexcept;
 
-		hid_device *device_ = nullptr;
-		std::string path_ = {};
-		bool opened_ = false;
-		const int timeout_ms_ = 60 * 1000;
-		unsigned short vendor_id_ = 0x2c97; // Ledger Vendor ID
+		hid_device *device = nullptr;
+		std::string path = {};
+		bool opened = false;
+		const int timeoutMs = 60 * 1000;
+		unsigned short vendorId = 0x2c97; // Ledger Vendor ID
 	};
 } // namespace ledger

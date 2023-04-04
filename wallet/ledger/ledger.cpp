@@ -12,11 +12,11 @@
 
 namespace ledger
 {
-	Ledger::Ledger(Transport::TransportType transportType) { this->transport_ = std::unique_ptr<Transport>(new Transport(transportType)); }
+	Ledger::Ledger(Transport::TransportType transportType) { this->transport = std::unique_ptr<Transport>(new Transport(transportType)); }
 
-	Ledger::~Ledger() { transport_->close(); }
+	Ledger::~Ledger() { transport->close(); }
 
-	void Ledger::open() { transport_->open(); }
+	void Ledger::open() { transport->open(); }
 
 	std::tuple<bytes, std::string, bytes> Ledger::GetPublicKey(const Bip32Path path, bool confirm)
 	{
@@ -27,7 +27,7 @@ namespace ledger
 		utils::AppendVector(payload, pathBytes);
 
 		// 0x00 = P2_LEGACY (base58)
-		auto buffer = transport_->exchange(APDU::CLA, APDU::INS_GET_PUBLIC_KEY, confirm, 0x00, payload);
+		auto buffer = transport->exchange(APDU::CLA, APDU::INS_GET_PUBLIC_KEY, confirm, 0x00, payload);
 
 		auto offset = 1;
 		auto pubKeyLen = (int)buffer[offset] * 16 + 1;
@@ -50,7 +50,7 @@ namespace ledger
 
 	bytes Ledger::GetTrustedInputRaw(bool firstRound, const bytes &transactionData)
 	{
-		return transport_->exchange(APDU::CLA, APDU::INS_GET_TRUSTED_INPUT, firstRound ? 0x00 : 0x80, 0x00, transactionData);
+		return transport->exchange(APDU::CLA, APDU::INS_GET_TRUSTED_INPUT, firstRound ? 0x00 : 0x80, 0x00, transactionData);
 	}
 
 	bytes Ledger::GetTrustedInput(const Tx& utxoTx, uint32_t indexLookup)
@@ -111,15 +111,15 @@ namespace ledger
 			changePathData.push_back(serializedChangePath.size() / 4);
 			utils::AppendVector(changePathData, serializedChangePath);
 
-			transport_->exchange(APDU::CLA, ins, p1, p2, changePathData);
+			transport->exchange(APDU::CLA, ins, p1, p2, changePathData);
 		}
 		else
 		{
-			transport_->exchange(APDU::CLA, ins, p1, p2, {0x00});
+			transport->exchange(APDU::CLA, ins, p1, p2, {0x00});
 		}
 
 		p1 = 0x00;
-		transport_->exchange(APDU::CLA, ins, p1, p2, utils::CreateVarint(tx.outputs.size()));
+		transport->exchange(APDU::CLA, ins, p1, p2, utils::CreateVarint(tx.outputs.size()));
 
 		for (auto i = 0; i < tx.outputs.size(); i++)
 		{
@@ -131,7 +131,7 @@ namespace ledger
 			utils::AppendVector(outputData, utils::CreateVarint(output.script.size()));
 			utils::AppendVector(outputData, output.script);
 
-			transport_->exchange(APDU::CLA, ins, p1, p2, outputData);
+			transport->exchange(APDU::CLA, ins, p1, p2, outputData);
 		}
 	}
 
@@ -146,7 +146,7 @@ namespace ledger
 		utils::AppendUint32(data, tx.time, true);
 		utils::AppendVector(data, utils::CreateVarint(trustedInputs.size()));
 
-		transport_->exchange(APDU::CLA, ins, p1, p2, data);
+		transport->exchange(APDU::CLA, ins, p1, p2, data);
 
 		p1 = 0x80;
 		for (auto i = 0; i < trustedInputs.size(); i++)
@@ -160,13 +160,13 @@ namespace ledger
 			utils::AppendVector(_data, trustedInput.serialized);
 			utils::AppendVector(_data, utils::CreateVarint(_script.size()));
 
-			transport_->exchange(APDU::CLA, ins, p1, p2, _data);
+			transport->exchange(APDU::CLA, ins, p1, p2, _data);
 
 			bytes scriptData;
 			utils::AppendVector(scriptData, _script);
 			utils::AppendUint32(scriptData, 0xffffffff, true);
 
-			transport_->exchange(APDU::CLA, ins, p1, p2, scriptData);
+			transport->exchange(APDU::CLA, ins, p1, p2, scriptData);
 		}
 	}
 
@@ -210,7 +210,7 @@ namespace ledger
 			utils::AppendUint32(data, tx.locktime);
 			data.push_back(0x01);
 
-			auto buffer = transport_->exchange(APDU::CLA, ins, p1, p2, data);
+			auto buffer = transport->exchange(APDU::CLA, ins, p1, p2, data);
 			if (buffer[0] & 0x01)
 			{
 				bytes data;
@@ -227,5 +227,5 @@ namespace ledger
 		return signatures;
 	}
 
-	void Ledger::close() { return transport_->close(); }
+	void Ledger::close() { return transport->close(); }
 } // namespace ledger
