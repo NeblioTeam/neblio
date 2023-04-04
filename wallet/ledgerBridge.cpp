@@ -1,6 +1,4 @@
-#include "ledger/bip32.h"
 #include "ledger/ledger.h"
-#include "ledger/tx.h"
 #include "ledger/utils.h"
 #include "ledgerBridge.h"
 #include "key.h"
@@ -40,12 +38,12 @@ namespace ledgerbridge
         return GetPublicKey(ledger::Bip32Path(account), display);
     }
 
-    void LedgerBridge::SignTransaction(const ITxDB& txdb, const CWallet& wallet, CWalletTx &wtxNew, const std::vector<LedgerBridgeUtxo> &utxos) 
+    void LedgerBridge::SignTransaction(const ITxDB& txdb, const CWallet& wallet, CWalletTx &wtxNew, const std::vector<LedgerBridgeUtxo> &utxos, bool hasChange) 
     {
         std::vector<ledger::Bip32Path> signaturePaths;
 
         // transform wallet tx to ledger tx
-        ledger::Tx tx = ToLedgerTx(wtxNew);        
+        ledger::Tx tx = ToLedgerTx(wtxNew);
 
         // transform UTxOs and build signature paths
         std::vector<ledger::Utxo> ledgerUtxos;
@@ -67,15 +65,17 @@ namespace ledgerbridge
             signaturePaths.push_back(ledger::Bip32Path(ledgerKey.account, ledgerKey.isChange, ledgerKey.index));
         }
 
-        // TODO GK - the transaction might not have any change
+        // We only support transaction from a single Ledger address for now so all the signature paths
+        // should be the same. Even if that was to change this would still be a valid approach
+        // to determining the change path. If users would like to use a different change path
+        // they could leverage the coin control feature.
         auto changePath = signaturePaths[0].ToChangePath();
 
         ledger::Ledger ledger(TRANSPORT_TYPE);
         ledger.open();
 
-        // TODO GK - the transaction might not have any change
         // sign tx
-        auto signTxResults = ledger.SignTransaction(tx, true, changePath, signaturePaths, ledgerUtxos);
+        auto signTxResults = ledger.SignTransaction(tx, hasChange, changePath, signaturePaths, ledgerUtxos);
 
         // add signatures to tx and verify
         for (auto sigIndex = 0; sigIndex < signTxResults.size(); sigIndex++) {

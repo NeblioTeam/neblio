@@ -2499,7 +2499,7 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                 if (wtxNew.fLedgerTx) {
                     try {
                         ledgerbridge::LedgerBridge ledgerBridge;
-                        ledgerBridge.SignTransaction(txdb, *this, wtxNew, ledgerBridgeUtxos);
+                        ledgerBridge.SignTransaction(txdb, *this, wtxNew, ledgerBridgeUtxos, nChange > 0);
                     } catch (const ledger::Error e) {
                         CreateErrorMsg(errorMsg, "Error while signing Ledger transaction: " + ledger::error_message(e));
                         return false;
