@@ -213,11 +213,11 @@ void EditAddressDialog::updateLedgerPathLabel()
         return;
     }
 
-    auto path = (new ledger::Bip32Path(
+    auto path = ledger::Bip32Path(
         ui->ledgerAccountEdit->text().toStdString(),
         false,
         ui->ledgerIndexEdit->text().toStdString()
-    ))->ToString();
+    ).ToString();
 
     ui->ledgerPathLabel->setText(tr("Ledger path: %1").arg(QString::fromStdString(path)));
 }
