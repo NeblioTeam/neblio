@@ -1,19 +1,16 @@
 # Input
 DEPENDPATH += . json qt
 HEADERS += qt/bitcoingui.h \
-    ledger/base58.h \
     ledger/bip32.h \
     ledger/bytes.h \
     ledger/comm.h \
     ledger/error.h \
-    ledger/hash.h \
     ledger/hid.h \
     ledger/ledger.h \
     ledger/messagebox.h \
     ledger/speculos.h \
     ledger/transport.h \
     ledger/tx.h \
-    ledger/uint256.h \
     ledger/utils.h \
     qt/transactiontablemodel.h \
     qt/addresstablemodel.h \
