@@ -36,7 +36,14 @@ namespace ledger
             std::string ToString() const;
 
         private:
-            std::vector<uint32_t> components;          
+            enum class Bip32PathType
+            {
+                Account,
+                Address
+            };
+
+            Bip32PathType type;
+            std::vector<uint32_t> components;
     };
 }
 

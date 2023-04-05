@@ -22,14 +22,16 @@ namespace ledger
 
     Bip32Path Bip32Path::ToChangePath() const
     { 
-        if (components.size() == 3) {
+        if (type == Bip32PathType::Account) 
+        {
             throw std::runtime_error("Account keypath cannot be converted to change path!");
         }
 
         return Bip32Path(components[ACCOUNT_INDEX], true, components[ADDRESS_INDEX_INDEX]);
      }
 
-    Bip32Path::Bip32Path(const std::string &keyPathStr) {
+    Bip32Path::Bip32Path(const std::string &keyPathStr) 
+    {
         std::vector<uint32_t> _components;
         std::stringstream ss(keyPathStr);
         std::string item;
@@ -71,44 +73,62 @@ namespace ledger
             first = false;
         }
 
-        if (_components.size() != 3 || _components.size() != 5)
+        if (_components.size() == 3)
+        {
+            type = Bip32PathType::Account;
+        }
+        else if (_components.size() == 5)
+        {
+            type = Bip32PathType::Address;
+        }
+        else
         {
             throw std::runtime_error("Invalid keypath size");
         }
 
-        if (_components[0] != Harden(BIP32_PURPOSE))
+        if (_components[PURPOSE_INDEX] != Harden(BIP32_PURPOSE))
         {
             throw std::runtime_error("Invalid keypath purpose");
         }
 
-        if (_components[1] != Harden(BIP32_COIN_TYPE))
+        if (_components[COIN_TYPE_INDEX] != Harden(BIP32_COIN_TYPE))
         {
             throw std::runtime_error("Invalid keypath coin type");
         }
 
-        if (!IsHardened(_components[2]))
+        if (!IsHardened(_components[ACCOUNT_INDEX]))
         {
             throw std::runtime_error("Invalid keypath account");
         }
 
-        if (_components.size() == 5 && IsHardened(_components[3]))
+        if (type == Bip32PathType::Address)
         {
-            throw std::runtime_error("Invalid keypath change");
-        }
+            if (IsHardened(_components[CHANGE_INDEX]))
+            {
+                throw std::runtime_error("Invalid keypath change");
+            }
 
-        if (_components.size() == 5 && IsHardened(_components[4]))
-        {
-            throw std::runtime_error("Invalid keypath index");
+            if (IsHardened(_components[ADDRESS_INDEX_INDEX]))
+            {
+                throw std::runtime_error("Invalid keypath index");
+            }
         }
         
         components.push_back(BIP32_PURPOSE);
         components.push_back(BIP32_COIN_TYPE);
         components.push_back(_components[ACCOUNT_INDEX]);
-        components.push_back(_components[CHANGE_INDEX]);
-        components.push_back(_components[ADDRESS_INDEX_INDEX]);
+        
+        if (type == Bip32PathType::Address)
+        {
+            components.push_back(_components[CHANGE_INDEX]);
+            components.push_back(_components[ADDRESS_INDEX_INDEX]);
+        }
     }
     
-    Bip32Path::Bip32Path(uint32_t account) {
+    Bip32Path::Bip32Path(uint32_t account)
+    {
+        type = Bip32PathType::Account;
+
         components.push_back(BIP32_PURPOSE);
         components.push_back(BIP32_COIN_TYPE);
         components.push_back(account);
@@ -118,7 +138,10 @@ namespace ledger
         : Bip32Path(std::stoul(account), isChange, std::stoul(index)) {};
 
     Bip32Path::Bip32Path(uint32_t account, bool isChange, uint32_t index)
-        : Bip32Path(account) {
+        : Bip32Path(account)
+    {
+        type = Bip32PathType::Address;
+
         components.push_back(isChange ? 1 : 0);
         components.push_back(index);
     };
@@ -130,8 +153,12 @@ namespace ledger
         utils::AppendUint32(serializedKeyPath, Harden(components[PURPOSE_INDEX]));
         utils::AppendUint32(serializedKeyPath, Harden(components[COIN_TYPE_INDEX]));
         utils::AppendUint32(serializedKeyPath, Harden(components[ACCOUNT_INDEX]));
-        utils::AppendUint32(serializedKeyPath, components[CHANGE_INDEX]);
-        utils::AppendUint32(serializedKeyPath, components[ADDRESS_INDEX_INDEX]);
+        
+        if (type == Bip32PathType::Address)
+        {
+            utils::AppendUint32(serializedKeyPath, components[CHANGE_INDEX]);
+            utils::AppendUint32(serializedKeyPath, components[ADDRESS_INDEX_INDEX]);
+        }
         
         return serializedKeyPath;
     }
@@ -140,13 +167,11 @@ namespace ledger
     { 
         std::stringstream ss;
         
-        ss << "m/" << components[PURPOSE_INDEX] << "'/" << components[COIN_TYPE_INDEX] << "'/" << components[ACCOUNT_INDEX];
+        ss << "m/" << components[PURPOSE_INDEX] << "'/" << components[COIN_TYPE_INDEX] << "'/" << components[ACCOUNT_INDEX] << "'";
         
-        if (components.size() > 3) {
+        if (type == Bip32PathType::Address)
+        {
             ss << "/" << components[CHANGE_INDEX];
-        }
-        
-        if (components.size() > 4) {
             ss << "/" << components[ADDRESS_INDEX_INDEX];
         }
         
