@@ -1638,8 +1638,10 @@ bool ExtractPubKeyP2PK(const CScript& dest, CPubKey& pubKeyOut)
     if (!Solver(CTxDB(), dest, whichType, solutions))
         return false;
 
-    return whichType == txnouttype::TX_PUBKEY &&
-        (pubKeyOut = CPubKey(solutions[0])).IsValid();
+    pubKeyOut = CPubKey(solutions[0]);
+
+    return whichType == txnouttype::TX_PUBKEY
+            && pubKeyOut.IsValid();
 }
 
 isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey)

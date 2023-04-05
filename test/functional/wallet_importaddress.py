@@ -25,8 +25,8 @@ class ImportAddress(BitcoinTestFramework):
         node1.importaddress(node0_addr)
         addresses_in_node1 = node1.getaddressesbyaccount("")
         assert_equal(node0_addr in addresses_in_node1, True)
+        
         # Test importing script
-
         node0_addr2 = node0.getnewaddress()
         node0_script = node0.getscriptpubkeyfromaddress(node0_addr2)
 
@@ -48,6 +48,10 @@ class ImportAddress(BitcoinTestFramework):
         for a in addresses:
             assert_equal(a in addresses_in_node1, True)
 
+        # Close the wallet and reopen it and make sure the addresses are still ther
+
+        # Make some tx to that address then generate 10 blocks for example and trigger rescan
+        # Make sure that after a rescan the balance/tx from the added account are updated
 
 if __name__ == '__main__':
     ImportAddress().main()

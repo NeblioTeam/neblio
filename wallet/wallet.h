@@ -239,7 +239,7 @@ public:
 
     bool AddWatchOnly(const CScript& dest, int64_t createTime);
     bool RemoveWatchOnly(const CScript& dest);
-    bool HaveWatchOnly(const CScript& key);
+    bool HaveWatchOnly(const CScript& key) const;
     bool LoadWatchOnly(const CScript& script, const CKeyMetadata& meta);
     bool GetWatchPubKey(const CKeyID& address, CPubKey& out) const;
 
@@ -328,6 +328,7 @@ public:
     isminetype IsMine(const CTxIn& txin) const;
     CAmount    GetDebit(const CTxIn& txin, const isminefilter& filter) const;
     isminetype IsMine(const CTxOut& txout) const;
+    isminetype IsMine(const CScript& script) const;
     CAmount    GetCredit(const CTxOut& txout, const isminefilter& filter) const;
     bool       IsChange(const ITxDB& txdb, const CTxOut& txout) const;
     CAmount    GetChange(const ITxDB& txdb, const CTxOut& txout) const;
@@ -479,6 +480,8 @@ static void WriteOrderPos(const int64_t& nOrderPos, mapValue_t& mapValue)
     mapValue["n"] = i64tostr(nOrderPos);
 }
 
+typedef std::tuple<CTxDestination, CAmount, bool> COutputEntry;
+
 /** A transaction with a bunch of additional info that only the owner cares about.
  * It includes any unrecorded transactions needed to link it back to the block chain.
  */
@@ -598,8 +601,7 @@ public:
                               const isminefilter& filter = isminetype::ISMINE_SPENDABLE_ALL) const;
     CAmount GetChange(const ITxDB& txdb) const;
 
-    void GetAmounts(const ITxDB& txdb, std::list<std::pair<CTxDestination, CAmount>>& listReceived,
-                    std::list<std::pair<CTxDestination, CAmount>>& listSent, CAmount& nFee,
+    void GetAmounts(const ITxDB& txdb, std::list<COutputEntry>& listReceived, std::list<COutputEntry>& listSent, CAmount& nFee,
                     std::string& strSentAccount, const isminefilter& filter) const;
 
     void GetAccountAmounts(const ITxDB& txdb, const std::string& strAccount, CAmount& nReceived,

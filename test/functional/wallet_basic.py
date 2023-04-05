@@ -318,32 +318,32 @@ class WalletTest(BitcoinTestFramework):
         # This will raise an exception since generate does not accept a string
         assert_raises_rpc_error(-1, "value is type str, expected int", self.nodes[0].generate, "2")
 
-        # # Import address and private key to check correct behavior of spendable unspents
-        # # 1. Send some coins to generate new UTXO
-        # address_to_import = self.nodes[2].getnewaddress()
-        # txid = self.nodes[0].sendtoaddress(address_to_import, 1)
-        # self.nodes[0].generate(1)
-        # self.sync_all([self.nodes[0:3]])
-        #
-        # # 2. Import address from node2 to node1
-        # self.nodes[1].importaddress(address_to_import)
-        #
-        # # 3. Validate that the imported address is watch-only on node1
-        # assert(self.nodes[1].validateaddress(address_to_import)["iswatchonly"])
-        #
-        # # 4. Check that the unspents after import are not spendable
-        # assert_array_result(self.nodes[1].listunspent(),
-        #                    {"address": address_to_import},
-        #                    {"spendable": False})
-        #
-        # # 5. Import private key of the previously imported address on node1
-        # priv_key = self.nodes[2].dumpprivkey(address_to_import)
-        # self.nodes[1].importprivkey(priv_key)
-        #
-        # # 6. Check that the unspents are now spendable on node1
-        # assert_array_result(self.nodes[1].listunspent(),
-        #                    {"address": address_to_import},
-        #                    {"spendable": True})
+        # Import address and private key to check correct behavior of spendable unspents
+        # 1. Send some coins to generate new UTXO
+        address_to_import = self.nodes[2].getnewaddress()
+        txid = self.nodes[0].sendtoaddress(address_to_import, 1)
+        self.nodes[0].generate(1)
+        self.sync_all([self.nodes[0:3]])
+        
+        # 2. Import address from node2 to node1
+        self.nodes[1].importaddress(address_to_import)
+        
+        # 3. Validate that the imported address is watch-only on node1
+        assert(self.nodes[1].validateaddress(address_to_import)["iswatchonly"])
+        
+        # 4. Check that the unspents after import are not spendable
+        assert_array_result(self.nodes[1].listunspent(),
+                           {"address": address_to_import},
+                           {"spendable": False})
+        
+        # 5. Import private key of the previously imported address on node1
+        priv_key = self.nodes[2].dumpprivkey(address_to_import)
+        self.nodes[1].importprivkey(priv_key)
+        
+        # 6. Check that the unspents are now spendable on node1
+        assert_array_result(self.nodes[1].listunspent(),
+                           {"address": address_to_import},
+                           {"spendable": True})
 
         # Mine a block from node0 to an address from node1
         cbAddr = self.nodes[1].getnewaddress()

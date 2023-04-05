@@ -43,6 +43,7 @@ add_executable(neblio-tests
     uint256_tests.cpp
     util_tests.cpp
     wallet_tests.cpp
+    wallet_importaddress.cpp
     environment.cpp
     ${GTEST_PATH}/src/gtest_main.cc
     ${GMOCK_PATH}/src/gmock-all.cc

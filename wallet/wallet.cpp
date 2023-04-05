@@ -114,7 +114,7 @@ bool CWallet::AddKey(const CKey& key)
 }
 
 
-bool CWallet::HaveWatchOnly(const CScript& dest) {
+bool CWallet::HaveWatchOnly(const CScript& dest) const {
     return setWatchOnly.count(dest) > 0;
 }
 
@@ -202,9 +202,7 @@ bool CWallet::ImportScripts(const std::set<CScript> scripts, int64_t timestamp)
             continue;
         }
 
-        if (!CWalletDB(strWalletFile).WriteCScript(Hash160(entry), entry)) {
-            return false;
-        }
+        AddCScript(entry);
 
         if (timestamp > 0) {
             mapKeyWatchOnlyMetadata[entry.GetID()].nCreateTime = timestamp;
@@ -927,7 +925,21 @@ CAmount CWallet::GetDebit(const CTxIn& txin, const isminefilter& filter) const
     return 0;
 }
 
-isminetype CWallet::IsMine(const CTxOut& txout) const { return ::IsMine(*this, txout.scriptPubKey); }
+isminetype CWallet::IsMine(const CTxOut& txout) const {
+
+    if (HaveWatchOnly(txout.scriptPubKey)) {
+        return isminetype::ISMINE_WATCH_ONLY;
+    }
+    return ::IsMine(*this, txout.scriptPubKey);
+}
+
+isminetype CWallet::IsMine(const CScript& script) const {
+
+    if (HaveWatchOnly(script)) {
+        return isminetype::ISMINE_WATCH_ONLY;
+    }
+    return ::IsMine(*this, script);
+}
 
 CAmount CWallet::GetCredit(const CTxOut& txout, const isminefilter& filter) const
 {
@@ -1084,8 +1096,8 @@ int CWalletTx::GetRequestCount() const
     return nRequests;
 }
 
-void CWalletTx::GetAmounts(const ITxDB& txdb, list<pair<CTxDestination, CAmount>>& listReceived,
-                           list<pair<CTxDestination, CAmount>>& listSent, CAmount& nFee,
+void CWalletTx::GetAmounts(const ITxDB& txdb, std::list<COutputEntry>& listReceived,
+                           std::list<COutputEntry>& listSent, CAmount& nFee,
                            string& strSentAccount, const isminefilter& filter) const
 {
     nFee = 0;
@@ -1129,11 +1141,11 @@ void CWalletTx::GetAmounts(const ITxDB& txdb, list<pair<CTxDestination, CAmount>
 
         // If we are debited by the transaction, add the output as a "sent" entry
         if (nDebit > 0)
-            listSent.push_back(make_pair(address, txout.nValue));
+            listSent.push_back(make_tuple(address, txout.nValue, fIsMine));
 
         // If we are receiving the output, add it as a "received" entry
         if (fIsMine & filter)
-            listReceived.push_back(make_pair(address, txout.nValue));
+            listReceived.push_back(make_tuple(address, txout.nValue, fIsMine));
     }
 }
 
@@ -1144,21 +1156,21 @@ void CWalletTx::GetAccountAmounts(const ITxDB& txdb, const string& strAccount, C
 
     CAmount                             allFee;
     string                              strSentAccount;
-    list<pair<CTxDestination, CAmount>> listReceived;
-    list<pair<CTxDestination, CAmount>> listSent;
+    list<COutputEntry> listReceived;
+    list<COutputEntry> listSent;
     GetAmounts(txdb, listReceived, listSent, allFee, strSentAccount, filter);
 
     if (strAccount == strSentAccount) {
-        for (const PAIRTYPE(CTxDestination, CAmount) & s : listSent)
-            nSent += s.second;
+        for (const COutputEntry& s : listSent)
+            nSent += std::get<1>(s);
         nFee = allFee;
     }
-    for (const PAIRTYPE(CTxDestination, CAmount) & r : listReceived) {
-        if (const auto entry = pwallet->mapAddressBook.get(r.first)) {
+    for (const COutputEntry& r : listReceived) {
+        if (const auto entry = pwallet->mapAddressBook.get(std::get<0>(r))) {
             if (entry.is_initialized() && entry->name == strAccount)
-                nReceived += r.second;
+                nReceived += std::get<1>(r);
         } else if (strAccount.empty()) {
-            nReceived += r.second;
+            nReceived += std::get<1>(r);
         }
     }
 }
