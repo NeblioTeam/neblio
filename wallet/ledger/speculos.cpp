@@ -43,8 +43,8 @@ namespace ledger
 	int Speculos::send(const bytes &data)
 	{
 		bytes d;
-		utils::AppendUint32(d, data.size());
-		utils::AppendVector(d, data);
+		AppendUint32(d, data.size());
+		AppendVector(d, data);
 		auto result = write(sockfd, d.data(), d.size());
 		if (result == -1)
 			return -1;
@@ -57,7 +57,7 @@ namespace ledger
 		if (read(sockfd, lengthB, sizeof(lengthB)) == -1)
 			return -1;
 
-		auto length = utils::BytesToInt(bytes(lengthB, lengthB + sizeof(lengthB)));
+		auto length = BytesToInt(bytes(lengthB, lengthB + sizeof(lengthB)));
 		uint8_t d[length];
 		if (read(sockfd, d, sizeof(d)) == -1)
 			return -1;
@@ -67,7 +67,7 @@ namespace ledger
 			return -1;
 
 		rdata = bytes(d, d + sizeof(d));
-		return utils::BytesToInt(bytes(sw, sw + sizeof(sw)));
+		return BytesToInt(bytes(sw, sw + sizeof(sw)));
 	}
 
 	void Speculos::close() noexcept

@@ -461,14 +461,14 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
     } else if (type == ReceiveLedger) {
         bool accountOk = true;
         uint32_t account = ledgerAccount.toUInt(&accountOk);
-        if (!accountOk || !validateLedgerPathItem(account, ledger::utils::MAX_RECOMMENDED_ACCOUNT)) {
+        if (!accountOk || !validateLedgerPathItem(account, ledger::MAX_RECOMMENDED_ACCOUNT)) {
             editStatus = INVALID_LEDGER_ACCOUNT;
             return QString();
         }
 
         bool indexOk = true;
         uint32_t index = ledgerIndex.toUInt(&indexOk);
-        if (!indexOk || !validateLedgerPathItem(index, ledger::utils::MAX_RECOMMENDED_INDEX)) {
+        if (!indexOk || !validateLedgerPathItem(index, ledger::MAX_RECOMMENDED_INDEX)) {
             editStatus = INVALID_LEDGER_INDEX;
             return QString();
         }

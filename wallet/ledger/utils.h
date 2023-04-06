@@ -7,7 +7,7 @@
 #include <vector>
 #include <string>
 
-namespace ledger::utils
+namespace ledger
 {
 	std::tuple<uint32_t, uint8_t> DeserializeVarint(const bytes &data, uint32_t offset);
 	bytes CreateVarint(uint32_t value);
@@ -29,6 +29,6 @@ namespace ledger::utils
 
 const uint32_t MAX_RECOMMENDED_ACCOUNT = 100;
 const uint32_t MAX_RECOMMENDED_INDEX = 50000;
-} // namespace ledger::utils
+} // namespace ledger
 
 #endif

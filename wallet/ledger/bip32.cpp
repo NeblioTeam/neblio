@@ -67,7 +67,6 @@ namespace ledger
                 throw std::runtime_error("Invalid keypath");
             }
 
-            // utils::AppendUint32(keypath, std::stoul(item) | path);
             _components.push_back(std::stoul(item) | path);
 
             first = false;
@@ -150,14 +149,14 @@ namespace ledger
     {
         bytes serializedKeyPath;
         
-        utils::AppendUint32(serializedKeyPath, Harden(components[PURPOSE_INDEX]));
-        utils::AppendUint32(serializedKeyPath, Harden(components[COIN_TYPE_INDEX]));
-        utils::AppendUint32(serializedKeyPath, Harden(components[ACCOUNT_INDEX]));
+        AppendUint32(serializedKeyPath, Harden(components[PURPOSE_INDEX]));
+        AppendUint32(serializedKeyPath, Harden(components[COIN_TYPE_INDEX]));
+        AppendUint32(serializedKeyPath, Harden(components[ACCOUNT_INDEX]));
         
         if (type == Bip32PathType::Address)
         {
-            utils::AppendUint32(serializedKeyPath, components[CHANGE_INDEX]);
-            utils::AppendUint32(serializedKeyPath, components[ADDRESS_INDEX_INDEX]);
+            AppendUint32(serializedKeyPath, components[CHANGE_INDEX]);
+            AppendUint32(serializedKeyPath, components[ADDRESS_INDEX_INDEX]);
         }
         
         return serializedKeyPath;

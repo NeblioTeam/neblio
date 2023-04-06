@@ -6,7 +6,7 @@
 #include <sstream>
 #include <string>
 
-namespace ledger::utils
+namespace ledger
 {
 	std::tuple<uint32_t, uint8_t> DeserializeVarint(const bytes &data, uint32_t offset)
 	{
@@ -190,4 +190,4 @@ namespace ledger::utils
 
 		return compressedPubKey;
 	}
-} // namespace ledger::utils
+} // namespace ledger

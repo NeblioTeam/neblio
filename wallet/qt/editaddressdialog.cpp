@@ -71,8 +71,8 @@ EditAddressDialog::EditAddressDialog(Mode modeIn, QWidget *parent) :
     // Ledger account and index defaults and validators
     ui->ledgerAccountEdit->setText("0");
     ui->ledgerIndexEdit->setText("0");
-    GUIUtil::setupIntWidget(ui->ledgerAccountEdit, this, 0, ledger::utils::MAX_RECOMMENDED_ACCOUNT);
-    GUIUtil::setupIntWidget(ui->ledgerIndexEdit, this, 0, ledger::utils::MAX_RECOMMENDED_INDEX);
+    GUIUtil::setupIntWidget(ui->ledgerAccountEdit, this, 0, ledger::MAX_RECOMMENDED_ACCOUNT);
+    GUIUtil::setupIntWidget(ui->ledgerIndexEdit, this, 0, ledger::MAX_RECOMMENDED_INDEX);
 
     connect(this->ui->ledgerAccountEdit, SIGNAL(textChanged(QString)), this, SLOT(updateLedgerPathLabel()));
     connect(this->ui->ledgerIndexEdit, SIGNAL(textChanged(QString)), this, SLOT(updateLedgerPathLabel()));
@@ -177,12 +177,12 @@ void EditAddressDialog::accept()
             break;
         case AddressTableModel::INVALID_LEDGER_ACCOUNT:
             QMessageBox::warning(this, windowTitle(),
-                tr("The entered Ledger account \"%1\" is not in the recommended range (0-%2).").arg(ui->ledgerAccountEdit->text()).arg(ledger::utils::MAX_RECOMMENDED_ACCOUNT),
+                tr("The entered Ledger account \"%1\" is not in the recommended range (0-%2).").arg(ui->ledgerAccountEdit->text()).arg(ledger::MAX_RECOMMENDED_ACCOUNT),
                 QMessageBox::Ok, QMessageBox::Ok);
             break;
         case AddressTableModel::INVALID_LEDGER_INDEX:
             QMessageBox::warning(this, windowTitle(),
-                tr("The entered Ledger address index \"%1\" is not in the recommended range (0-%2).").arg(ui->ledgerIndexEdit->text()).arg(ledger::utils::MAX_RECOMMENDED_INDEX),
+                tr("The entered Ledger address index \"%1\" is not in the recommended range (0-%2).").arg(ui->ledgerIndexEdit->text()).arg(ledger::MAX_RECOMMENDED_INDEX),
                 QMessageBox::Ok, QMessageBox::Ok);
             break;
         case AddressTableModel::WALLET_UNLOCK_FAILURE:

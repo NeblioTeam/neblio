@@ -24,22 +24,22 @@ namespace ledger
 
 		auto pathBytes = path.Serialize();
 		payload.push_back(pathBytes.size() / 4);
-		utils::AppendVector(payload, pathBytes);
+		AppendVector(payload, pathBytes);
 
 		// 0x00 = P2_LEGACY (base58)
 		auto buffer = transport->exchange(APDU::CLA, APDU::INS_GET_PUBLIC_KEY, confirm, 0x00, payload);
 
 		auto offset = 1;
 		auto pubKeyLen = (int)buffer[offset] * 16 + 1;
-		auto pubKey = utils::Splice(buffer, offset, pubKeyLen);
+		auto pubKey = Splice(buffer, offset, pubKeyLen);
 		offset += pubKeyLen;
 
 		auto addressLen = (int)buffer[offset];
 		offset++;
-		auto address = utils::Splice(buffer, offset, addressLen);
+		auto address = Splice(buffer, offset, addressLen);
 		offset += addressLen;
 
-		auto chainCode = utils::Splice(buffer, offset, 32);
+		auto chainCode = Splice(buffer, offset, 32);
 		offset += 32;
 
 		if (offset != buffer.size())
@@ -56,45 +56,45 @@ namespace ledger
 	bytes Ledger::GetTrustedInput(const Tx& utxoTx, uint32_t indexLookup)
 	{
 		bytes firstRoundData;
-		utils::AppendUint32(firstRoundData, indexLookup);
-		utils::AppendUint32(firstRoundData, utxoTx.version, true);
-		utils::AppendUint32(firstRoundData, utxoTx.time, true);
-    	utils::AppendVector(firstRoundData, utils::CreateVarint(utxoTx.inputs.size()));
+		AppendUint32(firstRoundData, indexLookup);
+		AppendUint32(firstRoundData, utxoTx.version, true);
+		AppendUint32(firstRoundData, utxoTx.time, true);
+    	AppendVector(firstRoundData, CreateVarint(utxoTx.inputs.size()));
 
 		GetTrustedInputRaw(true, firstRoundData);
 
 		for (auto input : utxoTx.inputs)
 		{
 			bytes inputData;
-			utils::AppendVector(inputData, input.prevout.hash);
-			utils::AppendUint32(inputData, input.prevout.index, true);
-			utils::AppendVector(inputData, utils::CreateVarint(input.script.size()));
+			AppendVector(inputData, input.prevout.hash);
+			AppendUint32(inputData, input.prevout.index, true);
+			AppendVector(inputData, CreateVarint(input.script.size()));
 
 			GetTrustedInputRaw(false, inputData);
 
 			bytes inputScriptData;
-			utils::AppendVector(inputScriptData, input.script);
-			utils::AppendUint32(inputScriptData, input.sequence);
+			AppendVector(inputScriptData, input.script);
+			AppendUint32(inputScriptData, input.sequence);
 
 			GetTrustedInputRaw(false, inputScriptData);
 		}
 
-		GetTrustedInputRaw(false, utils::CreateVarint(utxoTx.outputs.size()));
+		GetTrustedInputRaw(false, CreateVarint(utxoTx.outputs.size()));
 
 		for (auto output : utxoTx.outputs)
 		{
 			bytes outputData;
-			utils::AppendUint64(outputData, output.amount, true);
-			utils::AppendVector(outputData, utils::CreateVarint(output.script.size()));
+			AppendUint64(outputData, output.amount, true);
+			AppendVector(outputData, CreateVarint(output.script.size()));
 			GetTrustedInputRaw(false, outputData);
 
 			bytes outputScriptData;
-			utils::AppendVector(outputScriptData, output.script);
+			AppendVector(outputScriptData, output.script);
 
 			GetTrustedInputRaw(false, outputScriptData);
 		}
 
-		return GetTrustedInputRaw(false, utils::IntToBytes(utxoTx.locktime, 4));
+		return GetTrustedInputRaw(false, IntToBytes(utxoTx.locktime, 4));
 	}
 
 	void Ledger::UntrustedHashTxInputFinalize(const Tx &tx, bool hasChange, const Bip32Path changePath)
@@ -109,7 +109,7 @@ namespace ledger
 
 			bytes changePathData;
 			changePathData.push_back(serializedChangePath.size() / 4);
-			utils::AppendVector(changePathData, serializedChangePath);
+			AppendVector(changePathData, serializedChangePath);
 
 			transport->exchange(APDU::CLA, ins, p1, p2, changePathData);
 		}
@@ -119,7 +119,7 @@ namespace ledger
 		}
 
 		p1 = 0x00;
-		transport->exchange(APDU::CLA, ins, p1, p2, utils::CreateVarint(tx.outputs.size()));
+		transport->exchange(APDU::CLA, ins, p1, p2, CreateVarint(tx.outputs.size()));
 
 		for (auto i = 0; i < tx.outputs.size(); i++)
 		{
@@ -127,9 +127,9 @@ namespace ledger
 
 			auto output = tx.outputs[i];
 			bytes outputData;
-			utils::AppendUint64(outputData, output.amount, true);
-			utils::AppendVector(outputData, utils::CreateVarint(output.script.size()));
-			utils::AppendVector(outputData, output.script);
+			AppendUint64(outputData, output.amount, true);
+			AppendVector(outputData, CreateVarint(output.script.size()));
+			AppendVector(outputData, output.script);
 
 			transport->exchange(APDU::CLA, ins, p1, p2, outputData);
 		}
@@ -142,9 +142,9 @@ namespace ledger
 		auto p2 = isNewTransaction ? 0x00 : 0x80;
 
 		bytes data;
-		utils::AppendUint32(data, tx.version, true);
-		utils::AppendUint32(data, tx.time, true);
-		utils::AppendVector(data, utils::CreateVarint(trustedInputs.size()));
+		AppendUint32(data, tx.version, true);
+		AppendUint32(data, tx.time, true);
+		AppendVector(data, CreateVarint(trustedInputs.size()));
 
 		transport->exchange(APDU::CLA, ins, p1, p2, data);
 
@@ -157,14 +157,14 @@ namespace ledger
 			bytes _data;
 			_data.push_back(0x01);
 			_data.push_back(trustedInput.serialized.size());
-			utils::AppendVector(_data, trustedInput.serialized);
-			utils::AppendVector(_data, utils::CreateVarint(_script.size()));
+			AppendVector(_data, trustedInput.serialized);
+			AppendVector(_data, CreateVarint(_script.size()));
 
 			transport->exchange(APDU::CLA, ins, p1, p2, _data);
 
 			bytes scriptData;
-			utils::AppendVector(scriptData, _script);
-			utils::AppendUint32(scriptData, 0xffffffff, true);
+			AppendVector(scriptData, _script);
+			AppendUint32(scriptData, 0xffffffff, true);
 
 			transport->exchange(APDU::CLA, ins, p1, p2, scriptData);
 		}
@@ -205,9 +205,9 @@ namespace ledger
 
 			bytes data;
 			data.push_back(serializedSignPath.size() / 4);
-			utils::AppendVector(data, serializedSignPath);
+			AppendVector(data, serializedSignPath);
 			data.push_back(0x00);
-			utils::AppendUint32(data, tx.locktime);
+			AppendUint32(data, tx.locktime);
 			data.push_back(0x01);
 
 			auto buffer = transport->exchange(APDU::CLA, ins, p1, p2, data);
@@ -215,7 +215,7 @@ namespace ledger
 			{
 				bytes data;
 				data.push_back(0x30);
-				utils::AppendVector(data, bytes(buffer.begin() + 1, buffer.end()));
+				AppendVector(data, bytes(buffer.begin() + 1, buffer.end()));
 				signatures.push_back({1, data});
 			}
 			else

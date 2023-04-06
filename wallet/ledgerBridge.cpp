@@ -20,7 +20,7 @@ namespace ledgerbridge
     {
         auto result = ledger.GetPublicKey(path, display);
 
-        return ledger::utils::CompressPubKey(std::get<0>(result));
+        return ledger::CompressPubKey(std::get<0>(result));
     }
 
     ledger::bytes LedgerBridge::GetPublicKey(const ledger::Bip32Path path, bool display)

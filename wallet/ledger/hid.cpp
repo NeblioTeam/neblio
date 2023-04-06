@@ -34,7 +34,7 @@ namespace ledger
 		if (data.empty())
 			return -1;
 
-		auto dataNew = utils::IntToBytes(data.size(), 2);
+		auto dataNew = IntToBytes(data.size(), 2);
 		dataNew.insert(dataNew.end(), data.begin(), data.end());
 
 		size_t offset = 0;
@@ -46,7 +46,7 @@ namespace ledger
 			// Header: channel (0x0101), tag (0x05), sequence index
 			bytes header{0x01, 0x01, 0x05};
 
-			auto seqIdxBytes = utils::IntToBytes(seqIdx, 2);
+			auto seqIdxBytes = IntToBytes(seqIdx, 2);
 			header.insert(header.end(), seqIdxBytes.begin(), seqIdxBytes.end());
 
 			bytes::iterator it;
@@ -90,11 +90,11 @@ namespace ledger
 		assert(dataChunk[1] == 0x01);
 		assert(dataChunk[2] == 0x05);
 
-		auto seqIdxBytes = utils::IntToBytes(seqIdx, 2);
+		auto seqIdxBytes = IntToBytes(seqIdx, 2);
 		assert(seqIdxBytes[0] == dataChunk[3]);
 		assert(seqIdxBytes[1] == dataChunk[4]);
 
-		auto dataLen = utils::BytesToInt(bytes(dataChunk.begin() + 5, dataChunk.begin() + 7));
+		auto dataLen = BytesToInt(bytes(dataChunk.begin() + 5, dataChunk.begin() + 7));
 		bytes data(dataChunk.begin() + 7, dataChunk.end());
 
 		while (data.size() < dataLen)
@@ -106,7 +106,7 @@ namespace ledger
 			data.insert(data.end(), tmp.begin() + 5, tmp.end());
 		}
 
-		auto sw = utils::BytesToInt(bytes(data.begin() + dataLen - 2, data.begin() + dataLen));
+		auto sw = BytesToInt(bytes(data.begin() + dataLen - 2, data.begin() + dataLen));
 		rdata = bytes(data.begin(), data.begin() + dataLen - 2);
 
 		return sw;
