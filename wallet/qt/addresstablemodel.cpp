@@ -349,11 +349,21 @@ Qt::ItemFlags AddressTableModel::flags(const QModelIndex& index) const
     AddressTableEntry* rec = static_cast<AddressTableEntry*>(index.internalPointer());
 
     Qt::ItemFlags retval = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
-    // Can edit address and label for sending addresses,
+    // Can edit label and address for sending addresses,
     // and only label for receiving addresses.
-    if (rec->type == AddressTableEntry::Sending ||
-        (rec->type == AddressTableEntry::Receiving && index.column() == Label)) { // TODO DM?
-        retval |= Qt::ItemIsEditable;
+    switch (rec->type)
+    {
+    case AddressTableEntry::Sending:
+        if (index.column() == Label || index.column() == Address)
+            retval |= Qt::ItemIsEditable;
+        break;
+    case AddressTableEntry::Receiving:
+    case AddressTableEntry::ReceivingLedger:
+        if (index.column() == Label)
+            retval |= Qt::ItemIsEditable;
+        break;
+    default:
+        break;
     }
     return retval;
 }
@@ -466,7 +476,7 @@ bool AddressTableModel::removeRows(int row, int count, const QModelIndex& parent
 {
     Q_UNUSED(parent);
     AddressTableEntry* rec = priv->index(row);
-    if (count != 1 || !rec || rec->type == AddressTableEntry::Receiving) { // TODO DM?
+    if (count != 1 || !rec || rec->type == AddressTableEntry::Receiving || rec->type == AddressTableEntry::ReceivingLedger) {
         // Can only remove one row at a time, and cannot remove rows not in model.
         // Also refuse to remove receiving addresses.
         return false;
