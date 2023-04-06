@@ -267,6 +267,8 @@ void AddressBookPage::selectionChanged()
 
     if(table->selectionModel()->hasSelection())
     {
+        QModelIndexList ledgerColumn = table->selectionModel()->selectedRows(AddressTableModel::IsLedger);
+        bool isLedger = ledgerColumn.size() && ledgerColumn[0].data().toBool();
         switch(tab)
         {
         case SendingTab:
@@ -280,7 +282,7 @@ void AddressBookPage::selectionChanged()
             // Deleting receiving addresses, however, is not allowed
             ui->deleteButton->setEnabled(false);
             deleteAction->setEnabled(false);
-            ui->signMessage->setEnabled(true);
+            ui->signMessage->setEnabled(!isLedger);
             ui->verifyMessage->setEnabled(false);
             break;
         case LedgerTab:
