@@ -38,15 +38,17 @@ public:
     /** Return status of edit/insert operation */
     enum EditStatus
     {
-        OK,                     /**< Everything ok */
-        NO_CHANGES,             /**< No changes were made during edit operation */
-        INVALID_ADDRESS,        /**< Unparseable address */
-        DUPLICATE_ADDRESS,      /**< Address already in address book */
-        INVALID_LEDGER_ACCOUNT, /**< Ledger account outside of recommended range */
-        INVALID_LEDGER_INDEX,   /**< Ledger index outside of recommended range */
-        WALLET_UNLOCK_FAILURE,  /**< Wallet could not be unlocked to create new receiving address */
-        KEY_GENERATION_FAILURE, /**< Generating a new public key for a receiving address failed */
-        LEDGER_ERROR            /**< Ledger operation error */
+        OK,                          /**< Everything ok */
+        NO_CHANGES,                  /**< No changes were made during edit operation */
+        INVALID_ADDRESS,             /**< Unparseable address */
+        DUPLICATE_ADDRESS,           /**< Address already in address book */
+        INVALID_LEDGER_ACCOUNT,      /**< Ledger account outside of recommended range */
+        INVALID_LEDGER_INDEX,        /**< Ledger index outside of recommended range */
+        WALLET_UNLOCK_FAILURE,       /**< Wallet could not be unlocked to create new receiving address */
+        KEY_GENERATION_FAILURE,      /**< Generating a new public key for a receiving address failed */
+        LABEL_USED_BY_LEDGER,        /**< Using this label would break Ledger's unique label requirement */
+        LABEL_NOT_USABLE_FOR_LEDGER, /**< Ledger address requires a fresh, unique label */
+        LEDGER_ERROR                 /**< Ledger operation error */
     };
 
     static const QString Send;    /**< Specifies send address */
@@ -86,6 +88,10 @@ public:
     std::string purposeForAddress(const std::string& address) const;
 
     bool isWhitelisted(const std::string& address) const;
+
+    bool isLabelUsedByLedger(const QString& label);
+    bool isLabelUsableForLedger(const QString& label);
+    bool checkLabelAvailability(const QString& label, bool isLedgerAddress);
 
 private:
     WalletModel*      walletModel;

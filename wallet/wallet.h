@@ -422,6 +422,7 @@ public:
 
     bool HasDelegator(const ITxDB& txdb, const CTxOut& out) const;
     bool HasAddressBookEntry(const CTxDestination& address) const;
+    bool GetAddressBookEntryByLabel(const std::string& label, CTxDestination& addressOut) const;
 
     /// getNewAddress functions throw std::runtime error on failure
     CBitcoinAddress getNewAddress(const std::string& addressLabel, const std::string& purpose);
@@ -513,7 +514,7 @@ public:
                     [&key](const std::pair<CKeyID, CLedgerKey>& entry) {
                         auto candidateKey = entry.second;
                         return candidateKey.isChange != key.isChange
-                            && candidateKey.accountPubKeyID == key.accountPubKeyID                            
+                            && candidateKey.accountPubKeyID == key.accountPubKeyID
                             && candidateKey.index == key.index;
                     });
 

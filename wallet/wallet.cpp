@@ -2895,6 +2895,17 @@ bool CWallet::HasAddressBookEntry(const CTxDestination& address) const
     return mapAddressBook.exists(address);
 }
 
+bool CWallet::GetAddressBookEntryByLabel(const std::string& label, CTxDestination& addressOut) const
+{
+    for (const auto& item : mapAddressBook.getInternalMap()) {
+        if (item.second.name == label) {
+            addressOut = item.first;
+            return true;
+        }
+    }
+    return false;
+}
+
 bool CWallet::HasDelegator(const ITxDB& txdb, const CTxOut& out) const
 {
     CTxDestination delegator;

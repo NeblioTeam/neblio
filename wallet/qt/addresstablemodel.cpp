@@ -9,6 +9,8 @@
 #include "base58.h"
 #include "wallet.h"
 
+#include <boost/variant.hpp>
+
 #include <QColor>
 #include <QFont>
 
@@ -276,6 +278,37 @@ bool AddressTableModel::isWhitelisted(const std::string& address) const
     return purposeForAddress(address).compare(AddressBook::AddressBookPurpose::DELEGATOR) == 0;
 }
 
+bool AddressTableModel::isLabelUsedByLedger(const QString& label)
+{
+    std::string strLabel = label.toStdString();
+    CTxDestination addressOut;
+    return (
+        wallet->GetAddressBookEntryByLabel(strLabel, addressOut) &&
+        addressOut.type() == typeid(CKeyID) &&
+        wallet->HaveLedgerKey(*boost::get<CKeyID>(&addressOut))
+    );
+}
+
+bool AddressTableModel::isLabelUsableForLedger(const QString& label)
+{
+    std::string strLabel = label.toStdString();
+    CTxDestination addressOut;
+    return !strLabel.empty() && !wallet->GetAddressBookEntryByLabel(strLabel, addressOut);
+}
+
+bool AddressTableModel::checkLabelAvailability(const QString& label, bool isLedgerAddress)
+{
+    if (isLabelUsedByLedger(label)) {
+        editStatus = LABEL_USED_BY_LEDGER;
+        return false;
+    }
+    if (isLedgerAddress && !isLabelUsableForLedger(label)) {
+        editStatus = LABEL_NOT_USABLE_FOR_LEDGER;
+        return false;
+    }
+    return true;
+}
+
 bool AddressTableModel::setData(const QModelIndex& index, const QVariant& value, int role)
 {
     if (!index.isValid())
@@ -292,6 +325,8 @@ bool AddressTableModel::setData(const QModelIndex& index, const QVariant& value,
                 editStatus = NO_CHANGES;
                 return false;
             }
+            if (!checkLabelAvailability(value.toString(), rec->type == AddressTableEntry::ReceivingLedger))
+                return false;
             wallet->SetAddressBookEntry(CBitcoinAddress(rec->address.toStdString()).Get(),
                                         value.toString().toStdString());
             break;
@@ -394,6 +429,9 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
 
     editStatus = OK;
 
+    if (!checkLabelAvailability(label, type == ReceiveLedger))
+        return QString();
+
     if (type == Send) {
         if (!walletModel->validateAddress(address)) {
             editStatus = INVALID_ADDRESS;
@@ -467,6 +505,9 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
     // Add entry
     {
         LOCK(wallet->cs_wallet);
+        // Double-check label availability (now that we have acquired the lock)
+        if (!checkLabelAvailability(label, type == ReceiveLedger))
+            return QString();
         wallet->SetAddressBookEntry(CBitcoinAddress(strAddress).Get(), strLabel);
     }
     return QString::fromStdString(strAddress);
