@@ -148,10 +148,13 @@ void SendCoinsDialog::on_ledgerCheckBox_toggled(bool checked)
     if (checked) {
         ui->ledgerWidget->setVisible(true);
         ui->editMetadataButton->setDisabled(true);
+        ui->allowSpendingDelegatedCoins->setDisabled(true);
+        ui->allowSpendingDelegatedCoins->setChecked(false);
         ui->sendButton->setText(tr("Sign and s&end"));
     } else {
         ui->ledgerWidget->setVisible(false);
         ui->editMetadataButton->setDisabled(false);
+        ui->allowSpendingDelegatedCoins->setDisabled(false);
         ui->sendButton->setText(tr("S&end"));
     }
 }
