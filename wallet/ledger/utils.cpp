@@ -68,16 +68,6 @@ namespace ledger::utils
 		return ss.str();
 	}
 
-	void PrintHex(const bytes &vec)
-	{
-		for (int i = 0; i < vec.size(); i++)
-		{
-			std::cout << std::hex << std::setfill('0') << std::setw(2) << (int)vec[i];
-		}
-
-		std::cout << std::dec << std::endl;
-	}
-
 	bytes HexToBytes(const std::string &data)
 	{
 		std::stringstream ss;
