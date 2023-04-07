@@ -202,7 +202,8 @@ bool CWallet::ImportScripts(const std::set<CScript> scripts, int64_t timestamp)
             continue;
         }
 
-        AddCScript(entry);
+        if (!AddCScript(entry))
+            return false;
 
         if (timestamp > 0) {
             mapKeyWatchOnlyMetadata[entry.GetID()].nCreateTime = timestamp;
@@ -1119,7 +1120,7 @@ void CWalletTx::GetAmounts(const ITxDB& txdb, std::list<COutputEntry>& listRecei
         if (txout.scriptPubKey.empty())
             continue;
 
-        isminetype fIsMine;
+        isminetype fIsMine = pwallet->IsMine(txout);
         // Only need to handle txouts if AT LEAST one of these is true:
         //   1) they debit from us (sent)
         //   2) the output is to us (received)
@@ -1127,8 +1128,7 @@ void CWalletTx::GetAmounts(const ITxDB& txdb, std::list<COutputEntry>& listRecei
             // Don't report 'change' txouts
             if (pwallet->IsChange(txdb, txout))
                 continue;
-            fIsMine = pwallet->IsMine(txout);
-        } else if (!IsMineCheck((fIsMine = pwallet->IsMine(txout)), ISMINE_SPENDABLE))
+        } else if (!IsMineCheck(fIsMine, static_cast<isminetype>(filter)))
             continue;
 
         // In either case, we need to get the destination address
@@ -1154,8 +1154,8 @@ void CWalletTx::GetAccountAmounts(const ITxDB& txdb, const string& strAccount, C
 {
     nReceived = nSent = nFee = 0;
 
-    CAmount                             allFee;
-    string                              strSentAccount;
+    CAmount            allFee;
+    string             strSentAccount;
     list<COutputEntry> listReceived;
     list<COutputEntry> listSent;
     GetAmounts(txdb, listReceived, listSent, allFee, strSentAccount, filter);

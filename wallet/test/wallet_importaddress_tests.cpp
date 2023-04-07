@@ -96,7 +96,7 @@ TEST_F(WalletTestFixture, import_scripts) {
 
      // Add existing script
      EXPECT_TRUE(!wallet_->mapKeyWatchOnlyMetadata.empty());
-     EXPECT_FALSE(wallet_->ImportScripts({script}, time));
+     EXPECT_TRUE(wallet_->ImportScripts({script}, time));
      EXPECT_TRUE(wallet_->mapKeyWatchOnlyMetadata.size() == 1);
 }
 
