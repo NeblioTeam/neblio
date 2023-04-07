@@ -86,13 +86,8 @@ working_dir = os.getcwd()
 
 call("tar -xf " + filename, shell=True) #extract the .tar.gz file
 
-dirname_bin = dirname + "_build"
+dirname_bin = dirname
 final_dirname = "boost_build"
-
-try:
-    shutil.rmtree(dirname_bin)
-except:
-    pass
 
 try:
     shutil.rmtree(final_dirname)
