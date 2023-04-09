@@ -68,11 +68,6 @@ class ImportAddress(BitcoinTestFramework):
         # Make some tx to that address then generate 10 blocks for example and import address see if rescan was triggered
         # Make sure that after a rescan the balance/tx from the added account are updated
         node0_addr3 = node0.getnewaddress()
-        print(addresses[0])
-        print(node0_addr)
-        print(node0_addr2)
-        print("\n")
-
         txid = node0.sendtoaddress(node0_addr3, 153)
         node0.generate(1)
         self.sync_all()
@@ -101,7 +96,7 @@ class ImportAddress(BitcoinTestFramework):
         assert_equal(node1_balance_without_watch_after_tx, node1_balance_without_watch_before_tx)
 
         # Test on address with label
-        node0.sendtoaddress(addr_with_label, 100, "", "")
+        txid = node0.sendtoaddress(addr_with_label, 100, "", "")
         node0.generate(15)
         self.sync_all()
         balance_addr_with_watch_and_label = node1.getbalance("test", 1, True)
@@ -130,17 +125,77 @@ class ImportAddress(BitcoinTestFramework):
         validate_pub_result2 = node1.validatepubkey(node0.validateaddress(addr_with_label)["pubkey"])
         assert_equal(validate_pub_result2["iswatchonly"], True)
 
-        # Test getwatchonlybalance
+        # Test getwatchonlybalance on account test
+        watch_balance = node1.getwatchonlybalance("test")
+        assert_equal(watch_balance, 100)
+
+        # Test gettransaction
+        txs = node1.gettransaction(txid, False, True)
+        assert_equal(txs['details'][0]['account'], "test")
+        assert_equal(txs['details'][0]['involvesWatchonly'], True)
 
         # Test listtransactions
-        # accounts = node1.getaddressesbyaccount("")
-        # accounts2 = node1.getaddressesbyaccount("label-rescan")
-        # lt = node1.listtransactions("", 10, 0, True)
-        # assert_equal(len(lt), 1)
+        txlist_with_watch = node1.listtransactions("test", 10, 0, True)
+        assert_equal(len(txlist_with_watch), 1)
+        assert_equal(txlist_with_watch[0]["involvesWatchonly"], True)
+        txlist_without_watch = node1.listtransactions("test", 10, 0, False)
+        assert_equal(len(txlist_without_watch), 0)
+
+        txlist_with_watch2 = node0.listtransactions("", 10, 0, True) # On node 0
+        txlist_without_watch2 = node0.listtransactions("", 10, 0, False) # On node 0
+        assert_equal(txlist_with_watch2, txlist_without_watch2) # Node 0 has no watch only tx/addresses
+
+        for tx in txlist_with_watch2:
+            if "involvesWatchonly" in tx:
+                assert_equal(tx["involvesWatchonly"], False)
+
+        # Import an address on node0 then send some tx to that addr and check if listtransactions has involvesWatchonly
+        node1_addr = node1.getnewaddress()
+        node0.importaddress(node1_addr)
+        node1.sendtoaddress(node1_addr, 10)
+
+        node1.generate(10)
+        self.sync_all()
+        tx_list_with_watch = node0.listtransactions("", 10, 0, True)
+
+        found_watch_tx = None
+        for tx in tx_list_with_watch:
+            if "involvesWatchonly" in tx:
+                found_watch_tx = tx
+
+        assert found_watch_tx != None
+        assert_equal(found_watch_tx["involvesWatchonly"], True)
 
         # Test listsinceblock
-        # Test listreceivedbyaddress/listreceivedbyaccount
-        # Test gettransaction
+        list_since_block = node0.listsinceblock("", 1, False, True)
+        # There should be at least one watchonly tx
+        found_watch_tx_in_last_block = False
+        for txs in list_since_block["transactions"]:
+            for tx in txs:
+                if "involvesWatchonly" in tx:
+                    found_watch_tx_in_last_block = True
+
+        assert_equal(found_watch_tx_in_last_block, True)
+        # Test listreceivedbyaddress
+        list_received_addr = node0.listreceivedbyaddress(1, False, True)
+        list_received_addr2 = node1.listreceivedbyaddress(1, False, True)
+
+        found_watch_list_received = False
+        found_watch_list_received2 = False
+
+        for addr in list_received_addr:
+            if addr["involvesWatchonly"] == True:
+                found_watch_list_received = True
+                break
+
+        for addr in list_received_addr2:
+            if addr["involvesWatchonly"] == True:
+                found_watch_list_received2 = True
+                break
+
+        assert_equal(found_watch_list_received, True)
+        assert_equal(found_watch_list_received2, True)
+
 
 if __name__ == '__main__':
     ImportAddress().main()

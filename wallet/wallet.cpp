@@ -11,6 +11,8 @@
 #include "kernel.h"
 #include "net.h"
 #include "ntp1/ntp1transaction.h"
+#include "script.h"
+#include "txdb-lmdb.h"
 #include "txdb.h"
 #include "txmempool.h"
 #include "ui_interface.h"
@@ -115,7 +117,13 @@ bool CWallet::AddKey(const CKey& key)
 
 
 bool CWallet::HaveWatchOnly(const CScript& dest) const {
-    return setWatchOnly.count(dest) > 0;
+    bool res = setWatchOnly.count(dest) > 0;
+    dest.ToString();
+    CTxDestination de;
+    ExtractDestination(CTxDB(), dest, de);
+    CBitcoinAddress a(de);
+    std::cout << "Address " << a.ToString() << " Exists? " << res << "\n";
+    return res;
 }
 
 bool CWallet::GetWatchPubKey(const CKeyID& address, CPubKey& out) const
@@ -918,9 +926,12 @@ CAmount CWallet::GetDebit(const CTxIn& txin, const isminefilter& filter) const
         map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
         if (mi != mapWallet.end()) {
             const CWalletTx& prev = (*mi).second;
-            if (txin.prevout.n < prev.vout.size())
-                if (IsMine(prev.vout[txin.prevout.n]) & filter)
+            if (txin.prevout.n < prev.vout.size()) {
+                isminetype fMine = IsMine(prev.vout[txin.prevout.n]);
+                if (fMine & filter) {
                     return prev.vout[txin.prevout.n].nValue;
+                }
+            }
         }
     }
     return 0;
@@ -1141,11 +1152,11 @@ void CWalletTx::GetAmounts(const ITxDB& txdb, std::list<COutputEntry>& listRecei
 
         // If we are debited by the transaction, add the output as a "sent" entry
         if (nDebit > 0)
-            listSent.push_back(make_tuple(address, txout.nValue, fIsMine));
+            listSent.push_back(COutputEntry{address, txout.nValue, fIsMine});
 
         // If we are receiving the output, add it as a "received" entry
         if (fIsMine & filter)
-            listReceived.push_back(make_tuple(address, txout.nValue, fIsMine));
+            listReceived.push_back(COutputEntry{address, txout.nValue, fIsMine});
     }
 }
 
@@ -1162,15 +1173,15 @@ void CWalletTx::GetAccountAmounts(const ITxDB& txdb, const string& strAccount, C
 
     if (strAccount == strSentAccount) {
         for (const COutputEntry& s : listSent)
-            nSent += std::get<1>(s);
+            nSent += s.amount;
         nFee = allFee;
     }
     for (const COutputEntry& r : listReceived) {
-        if (const auto entry = pwallet->mapAddressBook.get(std::get<0>(r))) {
+        if (const auto entry = pwallet->mapAddressBook.get(r.destination)) {
             if (entry.is_initialized() && entry->name == strAccount)
-                nReceived += std::get<1>(r);
+                nReceived += r.amount;
         } else if (strAccount.empty()) {
-            nReceived += std::get<1>(r);
+            nReceived += r.amount;
         }
     }
 }

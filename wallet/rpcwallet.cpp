@@ -1264,8 +1264,8 @@ Value getwatchonlybalance(const Array& params, bool fHelp)
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     std::string strAccount = params[0].get_str();
-    return ValueFromAmount(
-        GetAccountBalance(strAccount, /*nMinDepth*/ 1, ISMINE_WATCH_ONLY, CTxDB()));
+    CAmount balance = GetAccountBalance(strAccount, /*nMinDepth*/ 1, ISMINE_WATCH_ONLY, CTxDB());
+    return ValueFromAmount(balance);
 }
 
 Value getbalance(const Array& params, bool fHelp)
@@ -1297,8 +1297,6 @@ Value getbalance(const Array& params, bool fHelp)
     int nMinDepth = 1;
     if (params.size() > 1)
         nMinDepth = params[1].get_int();
-    if (params.size() > 1)
-        nMinDepth = params[1].get_int();
     isminefilter filter = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE);
     if (params.size() > 2 && params[2].get_bool())
         filter = filter | static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY);
@@ -1324,10 +1322,10 @@ Value getbalance(const Array& params, bool fHelp)
             if (wtx.GetDepthInMainChain(txdb, bestBlockHash) >= nMinDepth &&
                 wtx.GetBlocksToMaturity(txdb, bestBlockHash) == 0) {
                 for (const COutputEntry& r : listReceived)
-                    nBalance += std::get<1>(r);
+                    nBalance += r.amount;
             }
             for (const COutputEntry& r : listSent)
-                nBalance -= std::get<1>(r);
+                nBalance -= r.amount;
             nBalance -= allFee;
         }
         return ValueFromAmount(nBalance);
@@ -1785,15 +1783,19 @@ Value ListReceived(const Array& params, bool fByAccounts)
 
         for (const CTxOut& txout : wtx.vout) {
             CTxDestination address;
-            if (!ExtractDestination(txdb, txout.scriptPubKey, address) ||
-                !IsMineCheck(IsMine(*pwalletMain, address), static_cast<isminetype>(filter)))
+
+            if (!ExtractDestination(txdb, txout.scriptPubKey, address))
+                continue;
+
+            isminetype fMine = pwalletMain->IsMine(txout.scriptPubKey);
+            if (!IsMineCheck(fMine, static_cast<isminetype>(filter)))
                 continue;
 
             tallyitem& item = mapTally[address];
             item.nAmount += txout.nValue;
             item.nConf = min(item.nConf, nDepth);
             item.txids.push_back(wtx.GetHash());
-            item.fWatchOnly = pwalletMain->IsMine(txout);
+            item.fWatchOnly = pwalletMain->IsMine(txout) & ISMINE_WATCH_ONLY;
         }
     }
 
@@ -1829,7 +1831,7 @@ Value ListReceived(const Array& params, bool fByAccounts)
             obj.push_back(Pair("account", strAccount));
             obj.push_back(Pair("amount", ValueFromAmount(nAmount)));
             obj.push_back(Pair("confirmations", (nConf == std::numeric_limits<int>::max() ? 0 : nConf)));
-            obj.push_back(Pair("involvesWatchOnly", fInvolvesWatchOnly));
+            obj.push_back(Pair("involvesWatchonly", fInvolvesWatchOnly));
             json_spirit::Array transactions;
             if (it != mapTally.end()) {
                 for (const uint256& _item : (*it).second.txids) {
@@ -1851,7 +1853,7 @@ Value ListReceived(const Array& params, bool fByAccounts)
             obj.push_back(Pair("account", (*it).first));
             obj.push_back(Pair("amount", ValueFromAmount(nAmount)));
             obj.push_back(Pair("confirmations", (nConf == std::numeric_limits<int>::max() ? 0 : nConf)));
-            obj.push_back(Pair("involvesWatchOnly", fInvolvesWatchOnly));
+            obj.push_back(Pair("involvesWatchonly", fInvolvesWatchOnly));
             ret.push_back(obj);
         }
     }
@@ -1866,6 +1868,7 @@ Value listreceivedbyaddress(const Array& params, bool fHelp)
             "listreceivedbyaddress [minconf=1] [includeempty=false] [includeWatchonly=false]\n"
             "[minconf] is the minimum number of confirmations before payments are included.\n"
             "[includeempty] whether to include addresses that haven't received any payments.\n"
+            "[includeWatchonly=false] whether to include watch only payments"
             "Returns an array of objects containing:\n"
             "  \"address\" : receiving address\n"
             " \"involvesWatchonly\": Only returns true if imported addresses were involved in transaction"
@@ -1883,6 +1886,7 @@ Value listreceivedbyaccount(const Array& params, bool fHelp)
             "listreceivedbyaccount [minconf=1] [includeempty=false] [includeWatchonly=false]\n"
             "[minconf] is the minimum number of confirmations before payments are included.\n"
             "[includeempty] whether to include accounts that haven't received any payments.\n"
+            "[includeWatchonly=false] whether to include watch only payments"
             "Returns an array of objects containing:\n"
             "  \"account\" : the account of the receiving addresses\n"
             "  \"amount\" : total amount received by addresses with this account\n"
@@ -1918,11 +1922,11 @@ void ListTransactions(const ITxDB& txdb, const CWalletTx& wtx, const string& str
         (fAllAccounts || strAccount == strSentAccount)) {
         for (const COutputEntry& s : listSent) {
             Object entry;
-            bool ismine = std::get<2>(s);
+            isminetype ismine = pwalletMain->IsMine(GetScriptForDestination(s.destination));
             entry.push_back(Pair("account", strSentAccount));
-            MaybePushAddress(entry, std::get<0>(s));
+            MaybePushAddress(entry, s.destination);
             entry.push_back(Pair("category", "send"));
-            entry.push_back(Pair("amount", ValueFromAmount(-std::get<1>(s))));
+            entry.push_back(Pair("amount", ValueFromAmount(-s.amount)));
             entry.push_back(Pair("fee", ValueFromAmount(-nFee)));
             entry.push_back(Pair("blockheight", txdb.GetBestChainHeight().value_or(0) -
                                                     wtx.GetDepthInMainChain(txdb, bestBlockHash)));
@@ -1942,13 +1946,13 @@ void ListTransactions(const ITxDB& txdb, const CWalletTx& wtx, const string& str
         bool stop = false;
         for (const COutputEntry& r : listReceived) {
             string account;
-            bool ismine = std::get<2>(r);
-            if (const auto entry = pwalletMain->mapAddressBook.get(std::get<0>(r)))
+            isminetype ismine = pwalletMain->IsMine(GetScriptForDestination(r.destination));
+            if (const auto entry = pwalletMain->mapAddressBook.get(r.destination))
                 account = entry->name;
             if (fAllAccounts || (account == strAccount)) {
                 Object entry;
                 entry.push_back(Pair("account", account));
-                MaybePushAddress(entry, std::get<0>(r));
+                MaybePushAddress(entry, r.destination);
                 if (wtx.IsCoinBase() || wtx.IsCoinStake()) {
                     if (wtx.GetDepthInMainChain(txdb, bestBlockHash) < 1)
                         entry.push_back(Pair("category", "orphan"));
@@ -1960,7 +1964,7 @@ void ListTransactions(const ITxDB& txdb, const CWalletTx& wtx, const string& str
                     entry.push_back(Pair("category", "receive"));
                 }
                 if (!wtx.IsCoinStake())
-                    entry.push_back(Pair("amount", ValueFromAmount(std::get<1>(r))));
+                    entry.push_back(Pair("amount", ValueFromAmount(r.amount)));
                 else {
                     entry.push_back(Pair("amount", ValueFromAmount(-nFee)));
                     stop = true; // only one coinstake output
@@ -2110,13 +2114,13 @@ Value listaccounts(const Array& params, bool fHelp)
         wtx.GetAmounts(txdb, listReceived, listSent, nFee, strSentAccount, includeWatchonly);
         mapAccountBalances[strSentAccount] -= nFee;
         for (const COutputEntry& s : listSent)
-            mapAccountBalances[strSentAccount] -= std::get<1>(s);
+            mapAccountBalances[strSentAccount] -= s.amount;
         if (nDepth >= nMinDepth && wtx.GetBlocksToMaturity(txdb, bestBlockHash) == 0) {
             for (const COutputEntry& r : listReceived)
-                if (const auto en = pwalletMain->mapAddressBook.get(std::get<0>(r)))
-                    mapAccountBalances[en->name] += std::get<1>(r);
+                if (const auto en = pwalletMain->mapAddressBook.get(r.destination))
+                    mapAccountBalances[en->name] += r.amount;
                 else
-                    mapAccountBalances[""] += std::get<1>(r);
+                    mapAccountBalances[""] += r.amount;
         }
     }
 
@@ -2126,7 +2130,7 @@ Value listaccounts(const Array& params, bool fHelp)
         mapAccountBalances[entry.strAccount] += entry.nCreditDebit;
 
     Object ret;
-    // Maybe change the way it returns here and include a key iswatchonly
+    // TODO(sdmg15): Maybe change the way it returns here and include a key iswatchonly
     for (const PAIRTYPE(const string, CAmount) & accountBalance : mapAccountBalances) {
         ret.push_back(Pair(accountBalance.first, ValueFromAmount(accountBalance.second)));
     }
@@ -2135,7 +2139,7 @@ Value listaccounts(const Array& params, bool fHelp)
 
 Value listsinceblock(const Array& params, bool fHelp)
 {
-    if (fHelp)
+    if (fHelp || params.size() > 4)
         throw runtime_error(
             "listsinceblock [blockhash] [target-confirmations] [include-removed=true] "
             "[include-watchonly=false]\n"
@@ -2176,7 +2180,7 @@ Value listsinceblock(const Array& params, bool fHelp)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter");
     }
 
-    if (params.size() > 2 && params[2].get_bool()) {
+    if (params.size() > 3 && params[3].get_bool()) {
         filter |= ISMINE_WATCH_ONLY;
     }
 
@@ -2876,9 +2880,9 @@ Value listcoldutxos(const Array& params, bool fHelp)
 
 Value importaddress(const Array& params, bool fHelp) {
 
-    if (fHelp || params.size() > 1)
+    if (fHelp || params.size() > 4)
         throw std::runtime_error(
-                "importaddress,"
+                "importaddress [address] [label=\"\"] [rescan=true] [p2sh],"
                 "\nAdds an address or script (in hex) that can be watched as if it were "
                 "in your wallet but cannot be used to spend. Requires a new wallet backup.\n"
                 "\nNote: This call can take over an hour to complete if rescan is true, during that time, other rpc calls\n"
@@ -2891,12 +2895,12 @@ Value importaddress(const Array& params, bool fHelp) {
     CWallet* const pwallet = pwalletMain.get();
 
     std::string strLabel;
-    if (params.size() >= 2)
+    if (params.size() > 1)
         strLabel = params[1].get_str();
 
     // Whether to perform rescan after import
     bool fRescan = true;
-    if (params.size() >= 3)
+    if (params.size() > 2)
         fRescan = params[2].get_bool();
 
     bool rescanInProgress = false;
@@ -2944,7 +2948,8 @@ Value importaddress(const Array& params, bool fHelp) {
     if (fRescan)
     {
         LOCK2(cs_main, pwalletMain->cs_wallet);
-        pwallet->ReacceptWalletTransactions(db);
+        pwalletMain->ScanForWalletTransactions(boost::atomic_load(&pindexGenesisBlock).get(), true);
+        pwalletMain->ResendWalletTransactions(db);
     }
 
     return Object{};

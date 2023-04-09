@@ -480,7 +480,11 @@ static void WriteOrderPos(const int64_t& nOrderPos, mapValue_t& mapValue)
     mapValue["n"] = i64tostr(nOrderPos);
 }
 
-typedef std::tuple<CTxDestination, CAmount, bool> COutputEntry;
+struct COutputEntry {
+    CTxDestination destination;
+    CAmount amount;
+    isminetype fIsMine;
+};
 
 /** A transaction with a bunch of additional info that only the owner cares about.
  * It includes any unrecorded transactions needed to link it back to the block chain.
