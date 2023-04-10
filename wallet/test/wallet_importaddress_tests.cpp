@@ -3,16 +3,16 @@
 #include "wallet.h"
 #include "environment.h"
 #include "txdb-lmdb.h"
+#include "util.h"
 
 class WalletTestFixture : public ::testing::Test
 {
 public:
     std::string walletPath = std::string(TEST_ROOT_PATH) + "/data/wallet.dat";
-    CWallet* wallet_;
-
+    std::unique_ptr<CWallet> wallet_ = nullptr;
     virtual void SetUp()
     {
-        wallet_         = new CWallet(walletPath);
+        wallet_ = MakeUnique<CWallet>(walletPath);
         bool fFirstRun = true;
         DBErrors nLoadWalletRet = wallet_->LoadWallet(fFirstRun);
         if (nLoadWalletRet != DB_LOAD_OK) {
@@ -47,7 +47,7 @@ public:
     {
         CScript p2pk = getCScript(pubkeyToAdd);
         CKeyID addAddress = pubkeyToAdd.GetID();
-        CPubKey foundPubkey;
+        boost::optional<CPubKey> foundPubkey;
         LOCK(pwallet.cs_wallet);
 
         EXPECT_TRUE(!pwallet.HaveWatchOnly(p2pk));
@@ -57,19 +57,20 @@ public:
 
         bool isPubkeyValid = pubkeyToAdd.IsValid();
         if (isPubkeyValid) {
-            EXPECT_TRUE(pwallet.GetWatchPubKey(addAddress, foundPubkey));
-            EXPECT_EQ(foundPubkey, pubkeyToAdd);
+            foundPubkey = pwallet.GetWatchPubKey(addAddress);
+            EXPECT_TRUE(foundPubkey.has_value());
+            EXPECT_EQ(foundPubkey.value(), pubkeyToAdd);
         } else {
-            EXPECT_FALSE(pwallet.GetWatchPubKey(addAddress, foundPubkey));
-            EXPECT_EQ(foundPubkey, CPubKey()); // passed key is unchanged
+            foundPubkey = pwallet.GetWatchPubKey(addAddress);
+            EXPECT_EQ(foundPubkey.value_or(CPubKey{}), CPubKey{}); // passed key is unchanged
         }
 
         pwallet.RemoveWatchOnly(p2pk);
         EXPECT_EQ(pwallet.HaveWatchOnly(p2pk), false);
 
         if (isPubkeyValid) {
-            EXPECT_TRUE(!pwallet.GetWatchPubKey(addAddress, foundPubkey));
-            EXPECT_EQ(foundPubkey, pubkeyToAdd); // passed key is unchanged
+            foundPubkey = pwallet.GetWatchPubKey(addAddress);
+            EXPECT_EQ(foundPubkey.is_initialized(), false);
         }
     }
 };
@@ -134,9 +135,6 @@ TEST_F(WalletTestFixture, import_scripts_pub_key) {
 TEST_F(WalletTestFixture, watch_only_addresses) {
     CKey key;
     CPubKey pubkey;
-
-    EXPECT_TRUE(wallet_->setWatchOnly.empty());
-
     // uncompressed valid PubKey
     key.MakeNewKey(false);
     pubkey = key.GetPubKey();

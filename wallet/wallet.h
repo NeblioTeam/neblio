@@ -195,6 +195,7 @@ public:
                                   bool fIncludeDelegated = false) const;
     void AvailableCoins(const ITxDB& txdb, std::vector<COutput>& vCoins, bool fOnlyConfirmed = true,
                         bool fIncludeColdStaking = false, bool fIncludeDelegated = true,
+                        bool fIncludeUnspendable = false,
                         const CCoinControl* coinControl = nullptr) const;
 
     // Get available p2cs utxo
@@ -241,7 +242,7 @@ public:
     bool RemoveWatchOnly(const CScript& dest);
     bool HaveWatchOnly(const CScript& key) const;
     bool LoadWatchOnly(const CScript& script, const CKeyMetadata& meta);
-    bool GetWatchPubKey(const CKeyID& address, CPubKey& out) const;
+    boost::optional<CPubKey> GetWatchPubKey(const CKeyID& address) const;
 
     /** Increment the next transaction order id
         @return next transaction order id

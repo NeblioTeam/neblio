@@ -117,24 +117,17 @@ bool CWallet::AddKey(const CKey& key)
 
 
 bool CWallet::HaveWatchOnly(const CScript& dest) const {
-    bool res = setWatchOnly.count(dest) > 0;
-    dest.ToString();
-    CTxDestination de;
-    ExtractDestination(CTxDB(), dest, de);
-    CBitcoinAddress a(de);
-    std::cout << "Address " << a.ToString() << " Exists? " << res << "\n";
-    return res;
+    return setWatchOnly.count(dest) > 0;
 }
 
-bool CWallet::GetWatchPubKey(const CKeyID& address, CPubKey& out) const
+boost::optional<CPubKey> CWallet::GetWatchPubKey(const CKeyID& address) const
 {
     LOCK(cs_wallet);
     WatchKeyMap::const_iterator it = mapWatchKeys.find(address);
     if (it != mapWatchKeys.end()) {
-        out = it->second;
-        return true;
+        return it->second;
     }
-    return false;
+    return boost::none;
 }
 
 bool CWallet::AddWatchOnly(const CScript& dest, int64_t createTime)
@@ -1478,6 +1471,7 @@ CAmount CWallet::GetImmatureBalance(const ITxDB& txdb) const
 // populate vCoins with vector of spendable COutputs
 void CWallet::AvailableCoins(const ITxDB& txdb, vector<COutput>& vCoins, bool fOnlyConfirmed,
                              bool fIncludeColdStaking, bool fIncludeDelegated,
+                             bool fIncludeUnspendable,
                              const CCoinControl* coinControl) const
 {
 
@@ -1506,12 +1500,14 @@ void CWallet::AvailableCoins(const ITxDB& txdb, vector<COutput>& vCoins, bool fO
                 continue;
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
-                isminetype mine = IsMine(pcoin->vout[i]);
-                if (mine == ISMINE_NO)
+                isminetype mine = IsMine(pcoin->vout[i].scriptPubKey);
+                if (mine == ISMINE_NO) {
                     continue;
+                }
 
-                if (IsMineCheck(mine, ISMINE_WATCH_ONLY))
+                if (IsMineCheck(mine, ISMINE_WATCH_ONLY) && !fIncludeUnspendable) {
                     continue;
+                }
 
                 if (pcoin->vout[i].nValue < nMinimumInputValue)
                     continue;

@@ -3,11 +3,8 @@
 #include "block.h"
 #include "blockindex.h"
 #include "mocks/mtxdb.h"
-#include "txdb-lmdb.h"
 #include "wallet.h"
-#include "environment.h"
-#include <chrono>
-#include <thread>
+
 
 // how many times to run all the tests to have a chance to catch errors that only show up with particular
 // random shuffles
