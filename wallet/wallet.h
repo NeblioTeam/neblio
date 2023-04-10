@@ -131,12 +131,19 @@ public:
 
     std::set<int64_t>              setKeyPool;
     std::map<CKeyID, CKeyMetadata> mapKeyMetadata;
+    // Map from Script ID to key metadata (for watch-only keys).
+    std::map<CScriptID, CKeyMetadata> mapKeyWatchOnlyMetadata;
 
     static const boost::filesystem::path BackupHashFilename;
 
     typedef std::map<unsigned int, CMasterKey> MasterKeyMap;
+    using WatchOnlySet = std::set<CScript>; // In memory watch only set
+    using WatchKeyMap = std::map<CKeyID, CPubKey>;
+
     MasterKeyMap                               mapMasterKeys;
     unsigned int                               nMasterKeyMaxID;
+    WatchOnlySet                               setWatchOnly;
+    WatchKeyMap                                mapWatchKeys;
 
     CWallet() { SetNull(); }
     CWallet(std::string strWalletFileIn)
@@ -156,6 +163,9 @@ public:
         nOrderPosNext       = 0;
         nTimeFirstKey       = 0;
     }
+
+    bool ImportScriptPubKeys(const std::string& label, const std::set<CScript>& scripts, bool solvable, bool applyLabel, const int64_t timestamp);
+    bool ImportScripts(const std::set<CScript> scripts, int64_t timestamp);
 
     std::map<uint256, CWalletTx> mapWallet;
     std::list<CAccountingEntry>  laccentries;
@@ -185,6 +195,7 @@ public:
                                   bool fIncludeDelegated = false) const;
     void AvailableCoins(const ITxDB& txdb, std::vector<COutput>& vCoins, bool fOnlyConfirmed = true,
                         bool fIncludeColdStaking = false, bool fIncludeDelegated = true,
+                        bool fIncludeUnspendable = false,
                         const CCoinControl* coinControl = nullptr) const;
 
     // Get available p2cs utxo
@@ -226,6 +237,12 @@ public:
 
     /* Mark a transaction (and it in-wallet descendants) as abandoned so its inputs may be respent. */
     bool AbandonTransaction(const ITxDB& txdb, const uint256& hashTx);
+
+    bool AddWatchOnly(const CScript& dest, int64_t createTime);
+    bool RemoveWatchOnly(const CScript& dest);
+    bool HaveWatchOnly(const CScript& key) const;
+    bool LoadWatchOnly(const CScript& script, const CKeyMetadata& meta);
+    boost::optional<CPubKey> GetWatchPubKey(const CKeyID& address) const;
 
     /** Increment the next transaction order id
         @return next transaction order id
@@ -312,6 +329,7 @@ public:
     isminetype IsMine(const CTxIn& txin) const;
     CAmount    GetDebit(const CTxIn& txin, const isminefilter& filter) const;
     isminetype IsMine(const CTxOut& txout) const;
+    isminetype IsMine(const CScript& script) const;
     CAmount    GetCredit(const CTxOut& txout, const isminefilter& filter) const;
     bool       IsChange(const ITxDB& txdb, const CTxOut& txout) const;
     CAmount    GetChange(const ITxDB& txdb, const CTxOut& txout) const;
@@ -463,6 +481,12 @@ static void WriteOrderPos(const int64_t& nOrderPos, mapValue_t& mapValue)
     mapValue["n"] = i64tostr(nOrderPos);
 }
 
+struct COutputEntry {
+    CTxDestination destination;
+    CAmount amount;
+    isminetype fIsMine;
+};
+
 /** A transaction with a bunch of additional info that only the owner cares about.
  * It includes any unrecorded transactions needed to link it back to the block chain.
  */
@@ -582,8 +606,7 @@ public:
                               const isminefilter& filter = isminetype::ISMINE_SPENDABLE_ALL) const;
     CAmount GetChange(const ITxDB& txdb) const;
 
-    void GetAmounts(const ITxDB& txdb, std::list<std::pair<CTxDestination, CAmount>>& listReceived,
-                    std::list<std::pair<CTxDestination, CAmount>>& listSent, CAmount& nFee,
+    void GetAmounts(const ITxDB& txdb, std::list<COutputEntry>& listReceived, std::list<COutputEntry>& listSent, CAmount& nFee,
                     std::string& strSentAccount, const isminefilter& filter) const;
 
     void GetAccountAmounts(const ITxDB& txdb, const std::string& strAccount, CAmount& nReceived,

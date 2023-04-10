@@ -1631,13 +1631,26 @@ isminetype IsMine(const CKeyStore& keystore, const CTxDestination& dest)
     return boost::apply_visitor(CKeyStoreIsMineVisitor(&keystore), dest);
 }
 
+bool ExtractPubKeyP2PK(const CScript& dest, CPubKey& pubKeyOut)
+{
+    std::vector<std::vector<unsigned char>> solutions;
+    txnouttype whichType;
+    if (!Solver(CTxDB(), dest, whichType, solutions))
+        return false;
+
+    pubKeyOut = CPubKey(solutions[0]);
+
+    return whichType == txnouttype::TX_PUBKEY
+            && pubKeyOut.IsValid();
+}
+
 isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey)
 {
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
     if (!Solver(CTxDB(), scriptPubKey, whichType, vSolutions))
         return isminetype::ISMINE_NO;
-
+        
     CKeyID keyID;
     switch (whichType) {
     case TX_NONSTANDARD:

@@ -11,6 +11,8 @@
 #include "kernel.h"
 #include "net.h"
 #include "ntp1/ntp1transaction.h"
+#include "script.h"
+#include "txdb-lmdb.h"
 #include "txdb.h"
 #include "txmempool.h"
 #include "ui_interface.h"
@@ -112,6 +114,105 @@ bool CWallet::AddKey(const CKey& key)
             .WriteKey(pubkey, key.GetPrivKey(), mapKeyMetadata[pubkey.GetID()]);
     return true;
 }
+
+
+bool CWallet::HaveWatchOnly(const CScript& dest) const {
+    return setWatchOnly.count(dest) > 0;
+}
+
+boost::optional<CPubKey> CWallet::GetWatchPubKey(const CKeyID& address) const
+{
+    LOCK(cs_wallet);
+    WatchKeyMap::const_iterator it = mapWatchKeys.find(address);
+    if (it != mapWatchKeys.end()) {
+        return it->second;
+    }
+    return boost::none;
+}
+
+bool CWallet::AddWatchOnly(const CScript& dest, int64_t createTime)
+{
+    AssertLockHeld(cs_wallet);
+    // Add watch only in memory
+    setWatchOnly.insert(dest);
+    CPubKey pubKey;
+    if (ExtractPubKeyP2PK(dest, pubKey)) {
+        mapWatchKeys[pubKey.GetID()] = pubKey;
+    }
+
+    CKeyMetadata meta;
+    meta.nCreateTime = createTime;
+    mapKeyWatchOnlyMetadata[dest.GetID()] = meta;
+
+    return CWalletDB(strWalletFile).WriteWatchOnly(dest, meta);
+}
+
+bool CWallet::RemoveWatchOnly(const CScript& dest)
+{
+    AssertLockHeld(cs_wallet);
+    setWatchOnly.erase(dest);
+    CPubKey pubKey;
+    if (ExtractPubKeyP2PK(dest, pubKey)) {
+        mapWatchKeys.erase(pubKey.GetID());
+    }
+    return CWalletDB(strWalletFile).EraseWatchOnly(dest);
+}
+
+
+bool CWallet::LoadWatchOnly(const CScript& script, const CKeyMetadata& meta)
+{
+    // Add watchonly addr in memory
+    AssertLockHeld(cs_wallet);
+    setWatchOnly.insert(script);
+    CPubKey pubKey;
+    if (ExtractPubKeyP2PK(script, pubKey)) {
+        mapWatchKeys[pubKey.GetID()] = pubKey;
+    }
+    mapKeyWatchOnlyMetadata[script.GetID()] = meta;
+    return true;
+}
+
+bool CWallet::ImportScriptPubKeys(const std::string& label, const std::set<CScript>& scripts, bool solvable, bool applyLabel, const int64_t timestamp) {
+
+    for (const CScript& script : scripts) {
+        bool fisMine = ::IsMine(*this, script) == isminetype::ISMINE_NO;
+        if (!solvable || !fisMine) {
+            if (!AddWatchOnly(script, timestamp)) {
+                return false;
+            }
+        }
+    }
+
+    if (applyLabel) {
+        for (const CScript& script : scripts) {
+            CTxDestination dest;
+            ExtractDestination(CTxDB(), script, dest);
+            if (dest.which() != 0) {
+                SetAddressBookEntry(dest, label, AddressBook::AddressBookPurpose::RECEIVE);
+            }
+        }
+    }
+    return true;
+}
+
+bool CWallet::ImportScripts(const std::set<CScript> scripts, int64_t timestamp)
+{
+    for (const auto& entry : scripts) {
+        if (HaveCScript(entry.GetID())) {
+            NLog.write(b_sev::warn, "Wallet already have script {}, skipping\n", HexStr(entry));
+            continue;
+        }
+
+        if (!AddCScript(entry))
+            return false;
+
+        if (timestamp > 0) {
+            mapKeyWatchOnlyMetadata[entry.GetID()].nCreateTime = timestamp;
+        }
+    }
+    return true;
+}
+
 
 bool CWallet::AddCryptedKey(const CPubKey& vchPubKey, const vector<unsigned char>& vchCryptedSecret)
 {
@@ -818,15 +919,32 @@ CAmount CWallet::GetDebit(const CTxIn& txin, const isminefilter& filter) const
         map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
         if (mi != mapWallet.end()) {
             const CWalletTx& prev = (*mi).second;
-            if (txin.prevout.n < prev.vout.size())
-                if (IsMine(prev.vout[txin.prevout.n]) & filter)
+            if (txin.prevout.n < prev.vout.size()) {
+                isminetype fMine = IsMine(prev.vout[txin.prevout.n]);
+                if (fMine & filter) {
                     return prev.vout[txin.prevout.n].nValue;
+                }
+            }
         }
     }
     return 0;
 }
 
-isminetype CWallet::IsMine(const CTxOut& txout) const { return ::IsMine(*this, txout.scriptPubKey); }
+isminetype CWallet::IsMine(const CTxOut& txout) const {
+
+    if (HaveWatchOnly(txout.scriptPubKey)) {
+        return isminetype::ISMINE_WATCH_ONLY;
+    }
+    return ::IsMine(*this, txout.scriptPubKey);
+}
+
+isminetype CWallet::IsMine(const CScript& script) const {
+
+    if (HaveWatchOnly(script)) {
+        return isminetype::ISMINE_WATCH_ONLY;
+    }
+    return ::IsMine(*this, script);
+}
 
 CAmount CWallet::GetCredit(const CTxOut& txout, const isminefilter& filter) const
 {
@@ -983,8 +1101,8 @@ int CWalletTx::GetRequestCount() const
     return nRequests;
 }
 
-void CWalletTx::GetAmounts(const ITxDB& txdb, list<pair<CTxDestination, CAmount>>& listReceived,
-                           list<pair<CTxDestination, CAmount>>& listSent, CAmount& nFee,
+void CWalletTx::GetAmounts(const ITxDB& txdb, std::list<COutputEntry>& listReceived,
+                           std::list<COutputEntry>& listSent, CAmount& nFee,
                            string& strSentAccount, const isminefilter& filter) const
 {
     nFee = 0;
@@ -1006,7 +1124,7 @@ void CWalletTx::GetAmounts(const ITxDB& txdb, list<pair<CTxDestination, CAmount>
         if (txout.scriptPubKey.empty())
             continue;
 
-        isminetype fIsMine;
+        isminetype fIsMine = pwallet->IsMine(txout);
         // Only need to handle txouts if AT LEAST one of these is true:
         //   1) they debit from us (sent)
         //   2) the output is to us (received)
@@ -1014,8 +1132,7 @@ void CWalletTx::GetAmounts(const ITxDB& txdb, list<pair<CTxDestination, CAmount>
             // Don't report 'change' txouts
             if (pwallet->IsChange(txdb, txout))
                 continue;
-            fIsMine = pwallet->IsMine(txout);
-        } else if (!IsMineCheck((fIsMine = pwallet->IsMine(txout)), ISMINE_SPENDABLE))
+        } else if (!IsMineCheck(fIsMine, static_cast<isminetype>(filter)))
             continue;
 
         // In either case, we need to get the destination address
@@ -1028,11 +1145,11 @@ void CWalletTx::GetAmounts(const ITxDB& txdb, list<pair<CTxDestination, CAmount>
 
         // If we are debited by the transaction, add the output as a "sent" entry
         if (nDebit > 0)
-            listSent.push_back(make_pair(address, txout.nValue));
+            listSent.push_back(COutputEntry{address, txout.nValue, fIsMine});
 
         // If we are receiving the output, add it as a "received" entry
         if (fIsMine & filter)
-            listReceived.push_back(make_pair(address, txout.nValue));
+            listReceived.push_back(COutputEntry{address, txout.nValue, fIsMine});
     }
 }
 
@@ -1041,23 +1158,23 @@ void CWalletTx::GetAccountAmounts(const ITxDB& txdb, const string& strAccount, C
 {
     nReceived = nSent = nFee = 0;
 
-    CAmount                             allFee;
-    string                              strSentAccount;
-    list<pair<CTxDestination, CAmount>> listReceived;
-    list<pair<CTxDestination, CAmount>> listSent;
+    CAmount            allFee;
+    string             strSentAccount;
+    list<COutputEntry> listReceived;
+    list<COutputEntry> listSent;
     GetAmounts(txdb, listReceived, listSent, allFee, strSentAccount, filter);
 
     if (strAccount == strSentAccount) {
-        for (const PAIRTYPE(CTxDestination, CAmount) & s : listSent)
-            nSent += s.second;
+        for (const COutputEntry& s : listSent)
+            nSent += s.amount;
         nFee = allFee;
     }
-    for (const PAIRTYPE(CTxDestination, CAmount) & r : listReceived) {
-        if (const auto entry = pwallet->mapAddressBook.get(r.first)) {
+    for (const COutputEntry& r : listReceived) {
+        if (const auto entry = pwallet->mapAddressBook.get(r.destination)) {
             if (entry.is_initialized() && entry->name == strAccount)
-                nReceived += r.second;
+                nReceived += r.amount;
         } else if (strAccount.empty()) {
-            nReceived += r.second;
+            nReceived += r.amount;
         }
     }
 }
@@ -1354,6 +1471,7 @@ CAmount CWallet::GetImmatureBalance(const ITxDB& txdb) const
 // populate vCoins with vector of spendable COutputs
 void CWallet::AvailableCoins(const ITxDB& txdb, vector<COutput>& vCoins, bool fOnlyConfirmed,
                              bool fIncludeColdStaking, bool fIncludeDelegated,
+                             bool fIncludeUnspendable,
                              const CCoinControl* coinControl) const
 {
 
@@ -1382,12 +1500,14 @@ void CWallet::AvailableCoins(const ITxDB& txdb, vector<COutput>& vCoins, bool fO
                 continue;
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
-                isminetype mine = IsMine(pcoin->vout[i]);
-                if (mine == ISMINE_NO)
+                isminetype mine = IsMine(pcoin->vout[i].scriptPubKey);
+                if (mine == ISMINE_NO) {
                     continue;
+                }
 
-                if (IsMineCheck(mine, ISMINE_WATCH_ONLY))
+                if (IsMineCheck(mine, ISMINE_WATCH_ONLY) && !fIncludeUnspendable) {
                     continue;
+                }
 
                 if (pcoin->vout[i].nValue < nMinimumInputValue)
                     continue;
@@ -2674,7 +2794,7 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
 
     // This wallet is in its first run if all of these are empty
     fFirstRunRet = mapKeys.empty() && /*mapCryptedKeys.empty() &&*/ mapMasterKeys.empty() &&
-                   /*setWatchOnly.empty() &&*/ mapScripts.empty();
+                   setWatchOnly.empty() && mapScripts.empty();
 
     if (nLoadWalletRet != DB_LOAD_OK)
         return nLoadWalletRet;

@@ -71,6 +71,7 @@ SOURCES += \
     uint256_tests.cpp     \
     util_tests.cpp        \
     wallet_tests.cpp      \
+    wallet_importaddress_tests  \
     environment.cpp
 
 DEFINES += BITCOIN_QT_TEST

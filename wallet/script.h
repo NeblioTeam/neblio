@@ -694,6 +694,7 @@ void ExtractAffectedKeys(const ITxDB& txdb, const CKeyStore& keystore, const CSc
                          std::vector<CKeyID>& vKeys);
 bool ExtractDestination(const ITxDB& txdb, const CScript& scriptPubKey, CTxDestination& addressRet,
                         bool fColdStake = false);
+bool ExtractPubKeyP2PK(const CScript &dest, CPubKey& pubKeyOut);
 bool ExtractDestinations(const ITxDB& txdb, const CScript& scriptPubKey, txnouttype& typeRet,
                          std::vector<CTxDestination>& addressRet, int& nRequiredRet);
 SignatureState SignSignature(const CKeyStore& keystore, const CScript& fromPubKey, CTransaction& txTo,

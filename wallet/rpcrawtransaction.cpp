@@ -362,7 +362,7 @@ Value listunspent(const Array& params, bool fHelp)
                             "with between minconf and maxconf (inclusive) confirmations.\n"
                             "Optionally filtered to only include txouts paid to specified addresses.\n"
                             "Results are an array of Objects, each of which has:\n"
-                            "{txid, vout, scriptPubKey, amount, confirmations}");
+                            "{txid, vout, scriptPubKey, amount, confirmations, spendable - Whether we have the private keys to spend this output");
 
     RPCTypeCheck(params, list_of(int_type)(int_type)(array_type));
 
@@ -393,7 +393,7 @@ Value listunspent(const Array& params, bool fHelp)
 
     Array           results;
     vector<COutput> vecOutputs;
-    pwalletMain->AvailableCoins(txdb, vecOutputs, false);
+    pwalletMain->AvailableCoins(txdb, vecOutputs, false, false, true, /*includeUnspendable=*/true);
     for (const COutput& out : vecOutputs) {
         if (out.nDepth < nMinDepth || out.nDepth > nMaxDepth)
             continue;
@@ -426,6 +426,9 @@ Value listunspent(const Array& params, bool fHelp)
         entry.push_back(Pair("scriptPubKey", HexStr(pk.begin(), pk.end())));
         entry.push_back(Pair("amount", ValueFromAmount(nValue)));
         entry.push_back(Pair("confirmations", out.nDepth));
+        bool mine = ::IsMine(*pwalletMain, address);
+        bool spendable = ((mine & ISMINE_SPENDABLE) != ISMINE_NO) || (((mine & ISMINE_WATCH_ONLY) != ISMINE_NO));
+        entry.push_back(Pair("spendable", spendable));
         json_spirit::Array tokensRoot;
         for (int i = 0; i < (int)ntp1tx.getTxOut(out.i).tokenCount(); i++) {
             tokensRoot.push_back(ntp1tx.getTxOut(out.i).getToken(i).exportDatabaseJsonData());
