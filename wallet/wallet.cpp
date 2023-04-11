@@ -3719,6 +3719,54 @@ CAmount CWalletTx::GetCredit(const uint256& bestBlockHash, const ITxDB& txdb,
     return credit;
 }
 
+bool CWallet::IsLabelUsedByLedger(const std::string& label)
+{
+    CTxDestination addressOut;
+    return (
+        GetAddressBookEntryByLabel(label, addressOut) &&
+        addressOut.type() == typeid(CKeyID) &&
+        HaveLedgerKey(*boost::get<CKeyID>(&addressOut))
+    );
+}
+
+bool CWallet::IsLabelUsableForLedger(const std::string& label)
+{
+    CTxDestination addressOut;
+    return !label.empty() && !GetAddressBookEntryByLabel(label, addressOut);
+}
+
+LabelAvailability CWallet::CheckLabelAvailability(const std::string& label, bool isLedgerAddress)
+{
+    if (IsLabelUsedByLedger(label)) {
+        return LabelAvailability::USED_BY_LEDGER;
+    }
+    if (isLedgerAddress && !IsLabelUsableForLedger(label)) {
+        return LabelAvailability::NOT_USABLE_FOR_LEDGER;
+    }
+    return LabelAvailability::AVAILABLE;
+}
+
+std::string CWallet::ImportLedgerKey(int account, int index)
+{
+    ledgerbridge::LedgerBridge ledgerBridge;
+    auto accountPubKeyBytes = ledgerBridge.GetPublicKey(account, false);
+    auto paymentPubKeyBytes = ledgerBridge.GetPublicKey(account, false, index, true);
+    auto changePubKeyBytes = ledgerBridge.GetPublicKey(account, true, index, false);
+
+    CPubKey accountPubKey(accountPubKeyBytes);
+
+    CPubKey paymentPubKey(paymentPubKeyBytes);
+    CLedgerKey paymentLedgerKey(paymentPubKey, accountPubKey.GetID(), account, false, index);
+    AddLedgerKey(paymentLedgerKey);
+    auto address = CBitcoinAddress(paymentPubKey.GetID()).ToString();
+
+    CPubKey changePubKey(changePubKeyBytes);
+    CLedgerKey changeLedgerKey(changePubKey, accountPubKey.GetID(), account, true, index);
+    AddLedgerKey(changeLedgerKey);
+
+    return address;
+}
+
 void CWalletTx::MarkDirty()
 {
     c_CreditCached               = boost::none;

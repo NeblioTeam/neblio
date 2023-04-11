@@ -48,6 +48,13 @@ enum WalletFeature
     FEATURE_LATEST = 60000
 };
 
+enum LabelAvailability
+{
+    AVAILABLE,
+    USED_BY_LEDGER, /**< Using this label would break Ledger's unique label requirement */
+    NOT_USABLE_FOR_LEDGER, /**< Ledger address requires a fresh, unique label */
+};
+
 class WalletNewTxUpdateFunctor : public boost::enable_shared_from_this<WalletNewTxUpdateFunctor>
 {
     // reload balances if the current height less than the registered height plus this next value
@@ -429,6 +436,11 @@ public:
     CBitcoinAddress getNewAddress(const std::string& label);
     CBitcoinAddress getNewStakingAddress(const std::string& label);
     CAmount         GetStakingBalance(const ITxDB& txdb, bool fIncludeColdStaking) const;
+
+    bool IsLabelUsedByLedger(const std::string& label);
+    bool IsLabelUsableForLedger(const std::string& label);
+    LabelAvailability CheckLabelAvailability(const std::string& label, bool isLedgerAddress);
+    std::string ImportLedgerKey(int accountIndex, int addressIndex);
 
     mutable CCriticalSection cs_LedgerKeyStore;
 

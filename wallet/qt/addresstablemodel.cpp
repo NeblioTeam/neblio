@@ -278,31 +278,14 @@ bool AddressTableModel::isWhitelisted(const std::string& address) const
     return purposeForAddress(address).compare(AddressBook::AddressBookPurpose::DELEGATOR) == 0;
 }
 
-bool AddressTableModel::isLabelUsedByLedger(const QString& label)
-{
-    std::string strLabel = label.toStdString();
-    CTxDestination addressOut;
-    return (
-        wallet->GetAddressBookEntryByLabel(strLabel, addressOut) &&
-        addressOut.type() == typeid(CKeyID) &&
-        wallet->HaveLedgerKey(*boost::get<CKeyID>(&addressOut))
-    );
-}
-
-bool AddressTableModel::isLabelUsableForLedger(const QString& label)
-{
-    std::string strLabel = label.toStdString();
-    CTxDestination addressOut;
-    return !strLabel.empty() && !wallet->GetAddressBookEntryByLabel(strLabel, addressOut);
-}
-
 bool AddressTableModel::checkLabelAvailability(const QString& label, bool isLedgerAddress)
 {
-    if (isLabelUsedByLedger(label)) {
+    auto labelAvailability = wallet->CheckLabelAvailability(label.toStdString(), isLedgerAddress);
+    if (labelAvailability == LabelAvailability::USED_BY_LEDGER) {
         editStatus = LABEL_USED_BY_LEDGER;
         return false;
     }
-    if (isLedgerAddress && !isLabelUsableForLedger(label)) {
+    if (isLedgerAddress && labelAvailability == LabelAvailability::NOT_USABLE_FOR_LEDGER) {
         editStatus = LABEL_NOT_USABLE_FOR_LEDGER;
         return false;
     }
@@ -461,43 +444,25 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
     } else if (type == ReceiveLedger) {
         bool accountOk = true;
         uint32_t account = ledgerAccount.toUInt(&accountOk);
-        if (!accountOk || !validateLedgerPathItem(account, ledger::MAX_RECOMMENDED_ACCOUNT)) {
+        if (!accountOk || !ledgerbridge::LedgerBridge::ValidateAccountIndex(account)) {
             editStatus = INVALID_LEDGER_ACCOUNT;
             return QString();
         }
 
         bool indexOk = true;
         uint32_t index = ledgerIndex.toUInt(&indexOk);
-        if (!indexOk || !validateLedgerPathItem(index, ledger::MAX_RECOMMENDED_INDEX)) {
+        if (!indexOk || !ledgerbridge::LedgerBridge::ValidateAddressIndex(index)) {
             editStatus = INVALID_LEDGER_INDEX;
             return QString();
         }
 
-        ledger::bytes accountPubKeyBytes;
-        ledger::bytes paymentPubKeyBytes;
-        ledger::bytes changePubKeyBytes;
-
         try {
-            ledgerbridge::LedgerBridge ledgerBridge;
-            accountPubKeyBytes = ledgerBridge.GetPublicKey(account, false);
-            paymentPubKeyBytes = ledgerBridge.GetPublicKey(account, false, index, true);
-            changePubKeyBytes = ledgerBridge.GetPublicKey(account, true, index, false);
+            strAddress = wallet->ImportLedgerKey(account, index);
         } catch (const ledger::LedgerException& e) {
             editStatus = LEDGER_ERROR;
             ledgerError = e.GetErrorCode();
             return QString();
         }
-
-        CPubKey accountPubKey(accountPubKeyBytes);
-
-        CPubKey paymentPubKey(paymentPubKeyBytes);
-        CLedgerKey paymentLedgerKey(paymentPubKey, accountPubKey.GetID(), account, false, index);
-        wallet->AddLedgerKey(paymentLedgerKey);
-        strAddress = CBitcoinAddress(paymentPubKey.GetID()).ToString();
-
-        CPubKey changePubKey(changePubKeyBytes);
-        CLedgerKey changeLedgerKey(changePubKey, accountPubKey.GetID(), account, true, index);
-        wallet->AddLedgerKey(changeLedgerKey);
     } else {
         return QString();
     }
@@ -558,9 +523,4 @@ int AddressTableModel::lookupAddress(const QString& address) const
 void AddressTableModel::emitDataChanged(int idx)
 {
     emit dataChanged(index(idx, 0, QModelIndex()), index(idx, columns.length() - 1, QModelIndex()));
-}
-
-bool AddressTableModel::validateLedgerPathItem(uint32_t value, uint32_t top) const
-{
-    return 0 <= value && value <= top;
 }

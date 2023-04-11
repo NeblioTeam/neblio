@@ -2,6 +2,7 @@
 #include "ledger/tx.h"
 #include "ledger/bytes.h"
 #include "ledger/ledger.h"
+#include "ledger/utils.h"
 
 #include "itxdb.h"
 #include "wallet.h"
@@ -21,6 +22,16 @@ namespace ledgerbridge
     class LedgerBridge
     {
         public:
+            static bool ValidateAccountIndex(int accountIndex)
+            {
+                return 0 <= accountIndex && accountIndex <= ledger::MAX_RECOMMENDED_ACCOUNT;
+            }
+
+            static bool ValidateAddressIndex(int addressIndex)
+            {
+                return 0 <= addressIndex && addressIndex <= ledger::MAX_RECOMMENDED_INDEX;
+            }
+
             LedgerBridge();
             ~LedgerBridge();
             
