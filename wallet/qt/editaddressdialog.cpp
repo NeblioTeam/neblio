@@ -3,6 +3,7 @@
 #include "addresstablemodel.h"
 #include "guiutil.h"
 #include "ledger/bip32.h"
+#include "ledger/error.h"
 #include <ledger/messagebox.h>
 #include "ledger/utils.h"
 
@@ -207,7 +208,7 @@ void EditAddressDialog::accept()
             break;
         case AddressTableModel::LEDGER_ERROR:
             QMessageBox::critical(this, windowTitle(),
-                tr("A Ledger error occured: %1\n\nIf you did not cancel the operation intentionally, make sure that your device is connected to the computer and the Neblio app is opened on the device.").arg(QString::fromStdString(model->getLedgerErrorMessage())),
+                ledger::LedgerException(model->getLedgerError()).GetQtMessage(),
                 QMessageBox::Ok, QMessageBox::Ok);
             break;
 

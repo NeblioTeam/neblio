@@ -37,6 +37,7 @@ public:
     QPushButton *showQRCode;
     QPushButton *signMessage;
     QPushButton *verifyMessage;
+    QPushButton *verifyAddress;
     QPushButton *deleteButton;
     QSpacerItem *horizontalSpacer;
     QDialogButtonBox *buttonBox;
@@ -109,11 +110,19 @@ public:
 
         horizontalLayout->addWidget(verifyMessage);
 
+        verifyAddress = new QPushButton(AddressBookPage);
+        verifyAddress->setObjectName(QStringLiteral("verifyAddress"));
+        QIcon icon5;
+        icon5.addFile(QStringLiteral(":/icons/eye"), QSize(), QIcon::Normal, QIcon::Off);
+        verifyAddress->setIcon(icon5);
+
+        horizontalLayout->addWidget(verifyAddress);
+
         deleteButton = new QPushButton(AddressBookPage);
         deleteButton->setObjectName(QStringLiteral("deleteButton"));
-        QIcon icon5;
-        icon5.addFile(QStringLiteral(":/icons/remove"), QSize(), QIcon::Normal, QIcon::Off);
-        deleteButton->setIcon(icon5);
+        QIcon icon6;
+        icon6.addFile(QStringLiteral(":/icons/remove"), QSize(), QIcon::Normal, QIcon::Off);
+        deleteButton->setIcon(icon6);
 
         horizontalLayout->addWidget(deleteButton);
 
@@ -165,6 +174,10 @@ public:
         verifyMessage->setToolTip(QApplication::translate("AddressBookPage", "Verify a message to ensure it was signed with a specified neblio address", Q_NULLPTR));
 #endif // QT_NO_TOOLTIP
         verifyMessage->setText(QApplication::translate("AddressBookPage", "&Verify Message", Q_NULLPTR));
+#ifndef QT_NO_TOOLTIP
+        verifyAddress->setToolTip(QApplication::translate("AddressBookPage", "Verify a neblio address on your Ledger device", Q_NULLPTR));
+#endif // QT_NO_TOOLTIP
+        verifyAddress->setText(QApplication::translate("AddressBookPage", "Verify &Address", Q_NULLPTR));
 #ifndef QT_NO_TOOLTIP
         deleteButton->setToolTip(QApplication::translate("AddressBookPage", "Delete the currently selected address from the list", Q_NULLPTR));
 #endif // QT_NO_TOOLTIP

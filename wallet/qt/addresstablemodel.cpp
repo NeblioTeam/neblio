@@ -555,13 +555,6 @@ int AddressTableModel::lookupAddress(const QString& address) const
     }
 }
 
-std::string AddressTableModel::getLedgerErrorMessage() const {
-    if (editStatus != LEDGER_ERROR)
-        return "";
-
-    return ledger::LedgerException::GetMessage(ledgerError);
-}
-
 void AddressTableModel::emitDataChanged(int idx)
 {
     emit dataChanged(index(idx, 0, QModelIndex()), index(idx, columns.length() - 1, QModelIndex()));

@@ -14,7 +14,7 @@ namespace ledger
     Q_OBJECT
 
     public:
-        MessageBox(QWidget *parent, QSharedPointer<QObject> worker);
+        MessageBox(QWidget *parent, QSharedPointer<QObject> worker, const QString &text = QString());
         void exec();
 
     public slots:

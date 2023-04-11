@@ -17,6 +17,21 @@ class QMenu;
 class QModelIndex;
 QT_END_NAMESPACE
 
+/* Object for verifying a Ledger address in a separate thread.
+*/
+class VerifyLedgerAddressWorker : public QObject
+{
+    Q_OBJECT
+
+public slots:
+    // we use the shared pointer argument to ensure that workerPtr will be deleted after doing the
+    // retrieval
+    void verify(uint32_t account, uint32_t index, QSharedPointer<VerifyLedgerAddressWorker> workerPtr);
+
+signals:
+    void resultReady(QString errorMessage);
+};
+
 /** Widget that shows a list of sending or receiving addresses.
   */
 class AddressBookPage : public QDialog
@@ -57,6 +72,9 @@ private:
     QString returnLabel;
     QSortFilterProxyModel *proxyModel;
     QMenu *contextMenu;
+    QAction *signMessageAction;
+    QAction *verifyMessageAction;
+    QAction *verifyAddressAction;
     QAction *deleteAction;
     QString newAddressToSelect;
 
@@ -67,6 +85,8 @@ private slots:
     void on_copyToClipboard_clicked();
     void on_signMessage_clicked();
     void on_verifyMessage_clicked();
+    void on_verifyAddress_clicked();
+    void showVerifyAddressResult(QString errorMessage);
     void selectionChanged();
     void on_showQRCode_clicked();
     /** Spawn contextual menu (right mouse menu) for address book entry */

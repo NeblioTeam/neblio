@@ -83,7 +83,7 @@ public:
 
     EditStatus getEditStatus() const { return editStatus; }
 
-    std::string getLedgerErrorMessage() const;
+    ledger::ErrorCode getLedgerError() const { return ledgerError; }
 
     std::string purposeForAddress(const std::string& address) const;
 

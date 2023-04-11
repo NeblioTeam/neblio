@@ -7,6 +7,10 @@
 #include "editaddressdialog.h"
 #include "csvmodelwriter.h"
 #include "guiutil.h"
+#include "ledger/bip32.h"
+#include "ledger/error.h"
+#include "ledger/messagebox.h"
+#include "ledgerBridge.h"
 
 #include <QSortFilterProxyModel>
 #include <QClipboard>
@@ -16,6 +20,20 @@
 #ifdef USE_QRCODE
 #include "qrcodedialog.h"
 #endif
+
+void VerifyLedgerAddressWorker::verify(uint32_t account, uint32_t index, QSharedPointer<VerifyLedgerAddressWorker> workerPtr) {
+    ledger::bytes paymentPubKeyBytes;
+    QString errorMessage;
+    try {
+        ledgerbridge::LedgerBridge ledgerBridge;
+        paymentPubKeyBytes = ledgerBridge.GetPublicKey(account, false, index, true);
+    } catch (const ledger::LedgerException& e) {
+        errorMessage = e.GetQtMessage();
+    }
+
+    emit resultReady(errorMessage);
+    workerPtr.reset();
+}
 
 AddressBookPage::AddressBookPage(Mode modeIn, Tabs tabIn, QWidget *parent) :
     QDialog(parent),
@@ -55,16 +73,19 @@ AddressBookPage::AddressBookPage(Mode modeIn, Tabs tabIn, QWidget *parent) :
         ui->deleteButton->setVisible(true);
         ui->signMessage->setVisible(false);
         ui->verifyMessage->setVisible(true);
+        ui->verifyAddress->setVisible(false);
         break;
     case ReceivingTab:
         ui->deleteButton->setVisible(false);
         ui->signMessage->setVisible(true);
         ui->verifyMessage->setVisible(false);
+        ui->verifyAddress->setVisible(true);
         break;
     case LedgerTab:
         ui->deleteButton->setVisible(false);
         ui->signMessage->setVisible(false);
         ui->verifyMessage->setVisible(false);
+        ui->verifyAddress->setVisible(true);
         break;
     }
 
@@ -73,8 +94,9 @@ AddressBookPage::AddressBookPage(Mode modeIn, Tabs tabIn, QWidget *parent) :
     QAction *copyAddressAction = new QAction(ui->copyToClipboard->text(), this);
     QAction *editAction = new QAction(tr("&Edit"), this);
     QAction *showQRCodeAction = new QAction(ui->showQRCode->text(), this);
-    QAction *signMessageAction = new QAction(ui->signMessage->text(), this);
-    QAction *verifyMessageAction = new QAction(ui->verifyMessage->text(), this);
+    signMessageAction = new QAction(ui->signMessage->text(), this);
+    verifyMessageAction = new QAction(ui->verifyMessage->text(), this);
+    verifyAddressAction = new QAction(ui->verifyAddress->text(), this);
     deleteAction = new QAction(ui->deleteButton->text(), this);
 
     // Build context menu
@@ -84,14 +106,25 @@ AddressBookPage::AddressBookPage(Mode modeIn, Tabs tabIn, QWidget *parent) :
     contextMenu->addAction(editAction);
     if(tabIn == SendingTab)
         contextMenu->addAction(deleteAction);
+
     contextMenu->addSeparator();
+
 #ifdef USE_QRCODE
     contextMenu->addAction(showQRCodeAction);
 #endif
-    if(tabIn == ReceivingTab)
-        contextMenu->addAction(signMessageAction);
-    else if(tabIn == SendingTab)
+    switch(tabIn)
+    {
+    case SendingTab:
         contextMenu->addAction(verifyMessageAction);
+        break;
+    case ReceivingTab:
+        contextMenu->addAction(signMessageAction);
+        contextMenu->addAction(verifyAddressAction);
+        break;
+    case LedgerTab:
+        contextMenu->addAction(verifyAddressAction);
+        break;
+    }
 
     // Connect signals for context menu actions
     connect(copyAddressAction, SIGNAL(triggered()), this, SLOT(on_copyToClipboard_clicked()));
@@ -101,6 +134,7 @@ AddressBookPage::AddressBookPage(Mode modeIn, Tabs tabIn, QWidget *parent) :
     connect(showQRCodeAction, SIGNAL(triggered()), this, SLOT(on_showQRCode_clicked()));
     connect(signMessageAction, SIGNAL(triggered()), this, SLOT(on_signMessage_clicked()));
     connect(verifyMessageAction, SIGNAL(triggered()), this, SLOT(on_verifyMessage_clicked()));
+    connect(verifyAddressAction, SIGNAL(triggered()), this, SLOT(on_verifyAddress_clicked()));
 
     connect(ui->tableView, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
 
@@ -231,6 +265,42 @@ void AddressBookPage::on_verifyMessage_clicked()
     emit verifyMessage(addr);
 }
 
+void AddressBookPage::on_verifyAddress_clicked()
+{
+    QTableView *table = ui->tableView;
+    QModelIndexList indexes = table->selectionModel()->selectedRows(AddressTableModel::Address);
+    QString ledgerAddress;
+    uint32_t ledgerAccount;
+    uint32_t ledgerIndex;
+
+    foreach (QModelIndex index, indexes)
+    {
+        ledgerAddress = index.data().toString();
+        ledgerAccount = index.sibling(index.row(), AddressTableModel::LedgerAccount).data().toInt();
+        ledgerIndex = index.sibling(index.row(), AddressTableModel::LedgerIndex).data().toInt();
+    }
+
+    CKeyID ledgerKeyId;
+    if (!CBitcoinAddress(ledgerAddress.toStdString()).GetKeyID(ledgerKeyId)) {
+        // Should be unreachable
+        return;
+    }
+
+    QSharedPointer<VerifyLedgerAddressWorker> worker = QSharedPointer<VerifyLedgerAddressWorker>::create();
+    ledger::MessageBox msgBox(this, worker, tr("Verifying address: %1").arg(ledgerAddress));
+    connect(worker.data(), SIGNAL(resultReady(QString)), this, SLOT(showVerifyAddressResult(QString)));
+    connect(worker.data(), SIGNAL(resultReady(QString)), &msgBox, SLOT(quit()));
+    QTimer::singleShot(0, worker.data(), [worker, ledgerAccount, ledgerIndex]() { worker->verify(ledgerAccount, ledgerIndex, worker); });
+    msgBox.exec();
+}
+
+void AddressBookPage::showVerifyAddressResult(QString errorMessage)
+{
+    if (!errorMessage.isEmpty()) {
+        QMessageBox::critical(this, windowTitle(), errorMessage, QMessageBox::Ok, QMessageBox::Ok);
+    }
+}
+
 void AddressBookPage::on_newAddressButton_clicked()
 {
     if(!model)
@@ -276,20 +346,32 @@ void AddressBookPage::selectionChanged()
             ui->deleteButton->setEnabled(true);
             deleteAction->setEnabled(true);
             ui->signMessage->setEnabled(false);
+            signMessageAction->setEnabled(false);
             ui->verifyMessage->setEnabled(true);
+            verifyMessageAction->setEnabled(true);
+            ui->verifyAddress->setEnabled(false);
+            verifyAddressAction->setEnabled(false);
             break;
         case ReceivingTab:
             // Deleting receiving addresses, however, is not allowed
             ui->deleteButton->setEnabled(false);
             deleteAction->setEnabled(false);
             ui->signMessage->setEnabled(!isLedger);
+            signMessageAction->setEnabled(!isLedger);
             ui->verifyMessage->setEnabled(false);
+            verifyMessageAction->setEnabled(false);
+            ui->verifyAddress->setEnabled(isLedger);
+            verifyAddressAction->setEnabled(isLedger);
             break;
         case LedgerTab:
             ui->deleteButton->setEnabled(false);
             deleteAction->setEnabled(false);
             ui->signMessage->setEnabled(false);
+            signMessageAction->setEnabled(false);
             ui->verifyMessage->setEnabled(false);
+            verifyMessageAction->setEnabled(false);
+            ui->verifyAddress->setEnabled(isLedger);
+            verifyAddressAction->setEnabled(isLedger);
             break;
         }
         ui->copyToClipboard->setEnabled(true);
@@ -302,6 +384,7 @@ void AddressBookPage::selectionChanged()
         ui->copyToClipboard->setEnabled(false);
         ui->signMessage->setEnabled(false);
         ui->verifyMessage->setEnabled(false);
+        ui->verifyAddress->setEnabled(false);
     }
 }
 
