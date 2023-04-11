@@ -292,7 +292,7 @@ void AddressBookPage::on_verifyAddress_clicked()
     }
 
     QSharedPointer<VerifyLedgerAddressWorker> worker = QSharedPointer<VerifyLedgerAddressWorker>::create();
-    ledger_ui::LedgerMessageBox msgBox(this, worker, tr("Verifying address: %1").arg(ledgerAddress));
+    ledger_ui::LedgerMessageBox msgBox(this, worker, tr("Verifying address: <tt>%1</tt>").arg(ledgerAddress));
     connect(worker.data(), SIGNAL(resultReady(QString)), this, SLOT(showVerifyAddressResult(QString)));
     connect(worker.data(), SIGNAL(resultReady(QString)), &msgBox, SLOT(quit()));
     QTimer::singleShot(0, worker.data(), [worker, ledgerAccount, ledgerIndex]() { worker->verify(ledgerAccount, ledgerIndex, worker); });
