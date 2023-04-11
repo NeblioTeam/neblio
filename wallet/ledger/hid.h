@@ -1,6 +1,6 @@
 #pragma once
 
-#include "comm.h"
+#include "ledger/comm.h"
 
 #include "hidapi/hidapi.h"
 

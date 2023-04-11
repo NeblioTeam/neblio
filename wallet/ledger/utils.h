@@ -1,7 +1,7 @@
 #ifndef _LEDGER_UTILS
 #define _LEDGER_UTILS 1
 
-#include "bytes.h"
+#include "ledger/bytes.h"
 
 #include <cstdint>
 #include <vector>

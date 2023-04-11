@@ -1,6 +1,6 @@
-#include "error.h"
-#include "speculos.h"
-#include "utils.h"
+#include "ledger/error.h"
+#include "ledger/speculos.h"
+#include "ledger/utils.h"
 
 #include <arpa/inet.h>
 #include <stdio.h>

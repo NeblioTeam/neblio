@@ -24,7 +24,7 @@
 #include "ntp1/ntp1tokenlistmodel.h"
 #include "ntp1/ntp1tools.h"
 
-#include "ledger/messagebox.h"
+#include "ledger_ui/ledgermessagebox.h"
 
 void LedgerSignTxWorker::signTx(
     WalletModel*                       model,
@@ -290,7 +290,7 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     if (fLedgerTx) {
             QSharedPointer<LedgerSignTxWorker> worker = QSharedPointer<LedgerSignTxWorker>::create();
-            ledger::MessageBox msgBox(this, worker);
+            ledger_ui::LedgerMessageBox msgBox(this, worker);
             connect(worker.data(), SIGNAL(resultReady(WalletModel::SendCoinsReturn)), this, SLOT(setSendStatus(WalletModel::SendCoinsReturn)));
             connect(worker.data(), SIGNAL(resultReady(WalletModel::SendCoinsReturn)), &msgBox, SLOT(quit()));
             QTimer::singleShot(0, worker.data(), [&]() { worker->signTx(model, recipients, ntp1wallet, ntp1metadata, fSpendDelegatedOutputs, coinControl, strFromAccount, worker); });

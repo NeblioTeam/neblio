@@ -1,7 +1,7 @@
 #ifndef __LEDGER_BIP32
 #define __LEDGER_BIP32 1
 
-#include "bytes.h"
+#include "ledger/bytes.h"
 
 #include <cstdint>
 #include <vector>
@@ -9,7 +9,7 @@
 
 namespace ledger
 {
-    class Bip32Path 
+    class Bip32Path
     {
         public:
             const int PURPOSE_INDEX = 0;
@@ -25,7 +25,7 @@ namespace ledger
             Bip32Path(uint32_t account);
             Bip32Path(const std::string &account, bool isChange, const std::string &index);
             Bip32Path(uint32_t account, bool isChange, uint32_t index);
-    
+
             uint32_t Harden(uint32_t n) const;
             uint32_t Unharden(uint32_t n) const;
             bool IsHardened(uint32_t n) const;

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <QString>
 
 namespace ledger {
 	enum class ErrorCode {
@@ -43,7 +42,6 @@ namespace ledger {
 
 		ErrorCode GetErrorCode() const;
 		std::string GetMessage() const;
-		QString GetQtMessage() const;
 
 		const char *what() const noexcept override;
 	private:

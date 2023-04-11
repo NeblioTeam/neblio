@@ -1,12 +1,12 @@
-#include "messagebox.h"
+#include "ledger_ui/ledgermessagebox.h"
 
 #include <QThread>
 #include <QSharedPointer>
 #include <QMessageBox>
 
-namespace ledger
+namespace ledger_ui
 {
-    MessageBox::MessageBox(QWidget *parent, QSharedPointer<QObject> worker, const QString &text) : worker_(worker), msgBox_(parent)
+    LedgerMessageBox::LedgerMessageBox(QWidget *parent, QSharedPointer<QObject> worker, const QString &text) : worker_(worker), msgBox_(parent)
     {
         worker_->moveToThread(&thread_);
         thread_.start();
@@ -22,13 +22,13 @@ namespace ledger
         msgBox_.setStandardButtons(QMessageBox::StandardButton::NoButton);
     }
 
-    void MessageBox::exec()
+    void LedgerMessageBox::exec()
     {
         msgBox_.exec();
         thread_.wait(); // to make sure that the thread is finished
     }
 
-    void MessageBox::quit()
+    void LedgerMessageBox::quit()
     {
         msgBox_.accept();
         thread_.quit();

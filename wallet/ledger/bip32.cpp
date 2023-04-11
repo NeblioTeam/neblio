@@ -1,5 +1,5 @@
-#include "bip32.h"
-#include "utils.h"
+#include "ledger/bip32.h"
+#include "ledger/utils.h"
 
 #include <sstream>
 
@@ -21,8 +21,8 @@ namespace ledger
     }
 
     Bip32Path Bip32Path::ToChangePath() const
-    { 
-        if (type == Bip32PathType::Account) 
+    {
+        if (type == Bip32PathType::Account)
         {
             throw std::runtime_error("Account keypath cannot be converted to change path!");
         }
@@ -30,7 +30,7 @@ namespace ledger
         return Bip32Path(components[ACCOUNT_INDEX], true, components[ADDRESS_INDEX_INDEX]);
      }
 
-    Bip32Path::Bip32Path(const std::string &keyPathStr) 
+    Bip32Path::Bip32Path(const std::string &keyPathStr)
     {
         std::vector<uint32_t> _components;
         std::stringstream ss(keyPathStr);
@@ -112,18 +112,18 @@ namespace ledger
                 throw std::runtime_error("Invalid keypath index");
             }
         }
-        
+
         components.push_back(BIP32_PURPOSE);
         components.push_back(BIP32_COIN_TYPE);
         components.push_back(_components[ACCOUNT_INDEX]);
-        
+
         if (type == Bip32PathType::Address)
         {
             components.push_back(_components[CHANGE_INDEX]);
             components.push_back(_components[ADDRESS_INDEX_INDEX]);
         }
     }
-    
+
     Bip32Path::Bip32Path(uint32_t account)
     {
         type = Bip32PathType::Account;
@@ -148,32 +148,32 @@ namespace ledger
     bytes Bip32Path::Serialize() const
     {
         bytes serializedKeyPath;
-        
+
         AppendUint32(serializedKeyPath, Harden(components[PURPOSE_INDEX]));
         AppendUint32(serializedKeyPath, Harden(components[COIN_TYPE_INDEX]));
         AppendUint32(serializedKeyPath, Harden(components[ACCOUNT_INDEX]));
-        
+
         if (type == Bip32PathType::Address)
         {
             AppendUint32(serializedKeyPath, components[CHANGE_INDEX]);
             AppendUint32(serializedKeyPath, components[ADDRESS_INDEX_INDEX]);
         }
-        
+
         return serializedKeyPath;
     }
 
-    std::string Bip32Path::ToString() const 
-    { 
+    std::string Bip32Path::ToString() const
+    {
         std::stringstream ss;
-        
+
         ss << "m/" << components[PURPOSE_INDEX] << "'/" << components[COIN_TYPE_INDEX] << "'/" << components[ACCOUNT_INDEX] << "'";
-        
+
         if (type == Bip32PathType::Address)
         {
             ss << "/" << components[CHANGE_INDEX];
             ss << "/" << components[ADDRESS_INDEX_INDEX];
         }
-        
+
         return ss.str();
      }
 } // namespace ledger

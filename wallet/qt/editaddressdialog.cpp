@@ -4,8 +4,9 @@
 #include "guiutil.h"
 #include "ledger/bip32.h"
 #include "ledger/error.h"
-#include <ledger/messagebox.h>
 #include "ledger/utils.h"
+#include "ledger_ui/ledgermessagebox.h"
+#include "ledger_ui/ledgeruiutils.h"
 
 #include <QDataWidgetMapper>
 #include <QtGui/QIntValidator>
@@ -116,7 +117,7 @@ bool EditAddressDialog::saveCurrentRow()
         if (isLedger)
         {
             QSharedPointer<AddLedgerRowWorker> worker = QSharedPointer<AddLedgerRowWorker>::create();
-            ledger::MessageBox msgBox(this, worker);
+            ledger_ui::LedgerMessageBox msgBox(this, worker);
             connect(worker.data(), SIGNAL(resultReady(QString)), this, SLOT(setAddress(QString)));
             connect(worker.data(), SIGNAL(resultReady(QString)), &msgBox, SLOT(quit()));
             QTimer::singleShot(0, worker.data(), [this, worker]() { worker->addRow(ui, model, worker); });
@@ -208,7 +209,7 @@ void EditAddressDialog::accept()
             break;
         case AddressTableModel::LEDGER_ERROR:
             QMessageBox::critical(this, windowTitle(),
-                ledger::LedgerException(model->getLedgerError()).GetQtMessage(),
+                ledger_ui::GetQtErrorMessage(ledger::LedgerException(model->getLedgerError())),
                 QMessageBox::Ok, QMessageBox::Ok);
             break;
 

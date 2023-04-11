@@ -9,8 +9,9 @@
 #include "guiutil.h"
 #include "ledger/bip32.h"
 #include "ledger/error.h"
-#include "ledger/messagebox.h"
 #include "ledgerBridge.h"
+#include "ledger_ui/ledgermessagebox.h"
+#include "ledger_ui/ledgeruiutils.h"
 
 #include <QSortFilterProxyModel>
 #include <QClipboard>
@@ -28,7 +29,7 @@ void VerifyLedgerAddressWorker::verify(uint32_t account, uint32_t index, QShared
         ledgerbridge::LedgerBridge ledgerBridge;
         paymentPubKeyBytes = ledgerBridge.GetPublicKey(account, false, index, true);
     } catch (const ledger::LedgerException& e) {
-        errorMessage = e.GetQtMessage();
+        errorMessage = ledger_ui::GetQtErrorMessage(e);
     }
 
     emit resultReady(errorMessage);
@@ -287,7 +288,7 @@ void AddressBookPage::on_verifyAddress_clicked()
     }
 
     QSharedPointer<VerifyLedgerAddressWorker> worker = QSharedPointer<VerifyLedgerAddressWorker>::create();
-    ledger::MessageBox msgBox(this, worker, tr("Verifying address: %1").arg(ledgerAddress));
+    ledger_ui::LedgerMessageBox msgBox(this, worker, tr("Verifying address: %1").arg(ledgerAddress));
     connect(worker.data(), SIGNAL(resultReady(QString)), this, SLOT(showVerifyAddressResult(QString)));
     connect(worker.data(), SIGNAL(resultReady(QString)), &msgBox, SLOT(quit()));
     QTimer::singleShot(0, worker.data(), [worker, ledgerAccount, ledgerIndex]() { worker->verify(ledgerAccount, ledgerIndex, worker); });

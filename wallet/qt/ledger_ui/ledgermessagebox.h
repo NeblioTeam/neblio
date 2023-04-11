@@ -1,5 +1,5 @@
-#ifndef __LEDGER_MESSAGEBOX
-#define __LEDGER_MESSAGEBOX 1
+#ifndef __LEDGER_LEDGERMESSAGEBOX
+#define __LEDGER_LEDGERMESSAGEBOX 1
 
 #include <QObject>
 #include <QWidget>
@@ -7,14 +7,14 @@
 #include <QSharedPointer>
 #include <QMessageBox>
 
-namespace ledger
+namespace ledger_ui
 {
-    class MessageBox : public QObject
+    class LedgerMessageBox : public QObject
     {
     Q_OBJECT
 
     public:
-        MessageBox(QWidget *parent, QSharedPointer<QObject> worker, const QString &text = QString());
+        LedgerMessageBox(QWidget *parent, QSharedPointer<QObject> worker, const QString &text = QString());
         void exec();
 
     public slots:

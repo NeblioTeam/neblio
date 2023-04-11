@@ -7,11 +7,12 @@ HEADERS += qt/bitcoingui.h \
     ledger/error.h \
     ledger/hid.h \
     ledger/ledger.h \
-    ledger/messagebox.h \
     ledger/speculos.h \
     ledger/transport.h \
     ledger/tx.h \
     ledger/utils.h \
+    qt/ledger_ui/ledgermessagebox.h \
+    qt/ledger_ui/ledgeruiutils.h \
     qt/transactiontablemodel.h \
     qt/addresstablemodel.h \
     qt/optionsdialog.h \
@@ -216,11 +217,12 @@ SOURCES += qt/bitcoin.cpp \
     ledger/error.cpp \
     ledger/hid.cpp \
     ledger/ledger.cpp \
-    ledger/messagebox.cpp \
     ledger/speculos.cpp \
     ledger/transport.cpp \
     ledger/tx.cpp \
     ledger/utils.cpp \
+    qt/ledger_ui/ledgermessagebox.cpp \
+    qt/ledger_ui/ledgeruiutils.cpp \
     qt/bitcoingui.cpp \
     qt/transactiontablemodel.cpp \
     qt/addresstablemodel.cpp \
