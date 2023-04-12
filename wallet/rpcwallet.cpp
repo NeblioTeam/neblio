@@ -547,6 +547,20 @@ Value getrawchangeaddress(const Array& params, bool fHelp)
 
 CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew = false)
 {
+    CTxDestination addressOut;
+    // if account is a Ledger account, since we don't generate
+    // new addresses for Ledger accounts so simply return the current one
+    if (
+        pwalletMain->GetAddressBookEntryByLabel(strAccount, addressOut) &&
+        addressOut.type() == typeid(CKeyID) &&
+        pwalletMain->HaveLedgerKey(*boost::get<CKeyID>(&addressOut))
+    ) {
+        if (bForceNew) {
+            throw JSONRPCError(RPC_MISC_ERROR, "Error: Can't overwrite Ledger account.");
+        }
+        return CBitcoinAddress(*boost::get<CKeyID>(&addressOut));
+    }
+
     CWalletDB walletdb(pwalletMain->strWalletFile);
 
     CAccount account;
