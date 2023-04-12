@@ -11,6 +11,7 @@
 #include "coldstakedelegation.h"
 #include "globals.h"
 #include "init.h"
+#include "ledgerBridge.h"
 #include "main.h"
 #include "udaddress.h"
 #include "wallet.h"
@@ -478,6 +479,39 @@ Value getnewaddress(const Array& params, bool fHelp)
     pwalletMain->SetAddressBookEntry(keyID, strAccount);
 
     return CBitcoinAddress(keyID).ToString();
+}
+
+Value addledgeraddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 3)
+        throw runtime_error("addledgeraddress <accountindex> <addressindex> <label>\n"
+                            "Imports a Ledger address into the wallet.  "
+                            "Path m/44'/146'/<accountindex>'/0/<addressindex> is used to derive the address.");
+
+    auto accountIndex = params[0].get_int();
+    if (!ledgerbridge::LedgerBridge::ValidateAccountIndex(accountIndex))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid account index");
+
+    auto addressIndex = params[1].get_int();
+    if (!ledgerbridge::LedgerBridge::ValidateAddressIndex(addressIndex))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid address index");
+    
+    auto label = AccountFromValue(params[2]);
+    if (pwalletMain->CheckLabelAvailability(label, true) != LabelAvailability::AVAILABLE)
+        throw JSONRPCError(RPC_WALLET_ERROR, "Label already exists");
+
+    auto address = pwalletMain->ImportLedgerKey(accountIndex, addressIndex);
+
+    // Add entry
+    {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        // Double-check label availability (now that we have acquired the lock)
+        if (pwalletMain->CheckLabelAvailability(label, true) != LabelAvailability::AVAILABLE)
+            throw JSONRPCError(RPC_WALLET_ERROR, "Label already exists");
+        pwalletMain->SetAddressBookEntry(CBitcoinAddress(address).Get(), label);
+    }
+
+    return address;
 }
 
 Value getrawchangeaddress(const Array& params, bool fHelp)

@@ -200,6 +200,7 @@ RPC commands are used to interact with a running instance of nebliod or neblio-Q
 
 ```
 abandontransaction <txid>
+addledgeraddress <account_index> <address_index> <label>
 addmultisigaddress <nrequired> <'["key","key"]'> [account]
 addnode "node" "add|remove|onetry"
 addredeemscript <redeemScript> [account]
