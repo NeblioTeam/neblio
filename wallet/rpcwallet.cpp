@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2010 Satoshi Nakamoto
+// Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -1030,8 +1030,19 @@ void GetAccountAddresses(string strAccount, set<CTxDestination>& setAddress)
     for (const auto& item : addrBook) {
         const CTxDestination& address = item.first;
         const string&         strName = item.second.name;
-        if (strName == strAccount)
+        if (strName == strAccount) {
             setAddress.insert(address);
+
+            if (address.type() == typeid(CKeyID)) {
+                CKeyID keyID = *boost::get<CKeyID>(&address);
+                // if account is a Ledger account, we also include associated change key
+                if (pwalletMain->HaveLedgerKey(keyID)) {
+                    CLedgerKey ledgerChangeKey;
+                    pwalletMain->GetOtherLedgerKey(keyID, ledgerChangeKey, false);
+                    setAddress.insert(CTxDestination(ledgerChangeKey.vchPubKey.GetID()));
+                }
+            }
+        }
     }
 }
 
