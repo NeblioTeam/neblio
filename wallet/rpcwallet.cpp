@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2010 Satoshi Nakamoto
+// Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -655,8 +655,18 @@ Value getaddressesbyaccount(const Array& params, bool fHelp)
     for (const auto& item : addrBook) {
         const CBitcoinAddress& address = item.first;
         const string&          strName = item.second.name;
-        if (strName == strAccount)
+        if (strName == strAccount) {
             ret.push_back(address.ToString());
+        
+            CKeyID keyID;
+            address.GetKeyID(keyID);
+            // if account is a Ledger account, we also include associated change key
+            if (pwalletMain->HaveLedgerKey(keyID)) {
+                CLedgerKey ledgerChangeKey;
+                pwalletMain->GetOtherLedgerKey(keyID, ledgerChangeKey, false);
+                ret.push_back(CBitcoinAddress(ledgerChangeKey.vchPubKey.GetID()).ToString());
+            }
+        }
     }
     return ret;
 }
