@@ -1,4 +1,4 @@
-// Copyright (c) 2010 Satoshi Nakamoto
+﻿// Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -648,10 +648,22 @@ Value getaccount(const Array& params, bool fHelp)
     if (!address.IsValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
 
+    CKeyID keyID;
+    address.GetKeyID(keyID);
+
     string     strAccount;
     const auto mi = pwalletMain->mapAddressBook.get(address.Get());
-    if (mi.is_initialized() && !mi->name.empty())
+    if (mi.is_initialized() && !mi->name.empty()) {
         strAccount = mi->name;
+    } else if (pwalletMain->HaveLedgerKey(keyID)) {
+        CLedgerKey ledgerPaymentKey;
+        pwalletMain->GetOtherLedgerKey(keyID, ledgerPaymentKey, true);
+        const auto miLedger = pwalletMain->mapAddressBook.get(ledgerPaymentKey.vchPubKey.GetID());
+        if (miLedger.is_initialized() && !miLedger->name.empty()) {
+            strAccount = miLedger->name;
+        }
+    }
+
     return strAccount;
 }
 
