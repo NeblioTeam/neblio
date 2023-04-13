@@ -643,7 +643,7 @@ public:
             QApplication::translate("SendCoinsDialog", "If you choose to pay from a Ledger address, only a single source address will be used.", Q_NULLPTR));
 #endif // QT_NO_TOOLTIP
         ledgerPayFromAddressLabel->setText(
-            QApplication::translate("SendCoinsDialog", "Pay from:", Q_NULLPTR));
+            QApplication::translate("SendCoinsDialog", "Pay From:", Q_NULLPTR));
         ledgerPayFromAddressEdit->setPlaceholderText(
             QApplication::translate("SendCoinsDialog", "Enter a neblio address owned by your Ledger device", Q_NULLPTR));
         ledgerPayFromNameLabel->setText(
