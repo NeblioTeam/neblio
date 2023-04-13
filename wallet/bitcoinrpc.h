@@ -210,6 +210,7 @@ extern json_spirit::Value verifyledgeraddress(const json_spirit::Array& params, 
 extern json_spirit::Value getaccountaddress(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value setaccount(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getaccount(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getledgeraccount(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getaddressesbyaccount(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value sendtoaddress(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value sendntp1toaddress(const json_spirit::Array& params, bool fHelp);

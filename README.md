@@ -237,6 +237,7 @@ getconnectioncount
 getdelegatedbalance
 getdifficulty
 getinfo
+getledgeraccount <neblioaddress or account>
 getmininginfo
 getnewaddress [account]
 getnewpubkey [account]

@@ -552,6 +552,47 @@ Value verifyledgeraddress(const Array& params, bool fHelp)
     return address;
 }
 
+Value getledgeraccount(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error("getledgeraccount <neblioaddress or account>\n"
+                            "Returns Ledger account info.");
+
+    auto addressOrAccount = params[0].get_str();
+
+    CKeyID keyID;
+    CBitcoinAddress address(addressOrAccount);
+    if (address.IsValid()) {
+        keyID = address.GetKeyID();
+    } else {
+        auto account = AccountFromValue(addressOrAccount);        
+        CTxDestination addressOut;
+        if (!pwalletMain->GetAddressBookEntryByLabel(account, addressOut))
+            throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Account not found");
+
+        if (addressOut.type() != typeid(CKeyID))
+            throw JSONRPCError(RCP_MISC_ERROR, "Invalid account type");
+
+        keyID = *boost::get<CKeyID>(&addressOut);
+    }
+
+    CLedgerKey ledgerPaymentKey;
+    if (!pwalletMain->GetLedgerKey(*boost::get<CKeyID>(&addressOut), ledgerPaymentKey))
+        throw JSONRPCError(RCP_MISC_ERROR, "Account is not a Ledger account");
+
+    CLedgerKey ledgerChangeKey;
+    pwalletMain->GetOtherLedgerKey(*boost::get<CKeyID>(&addressOut), ledgerChangeKey, false);
+    
+    Object entry;            
+    entry.push_back(Pair("label", account));
+    entry.push_back(Pair("accountindex", ledgerPaymentKey.accountIndex));
+    entry.push_back(Pair("addressindex", ledgerPaymentKey.addressIndex));
+    entry.push_back(Pair("address", CBitcoinAddress(ledgerPaymentKey.address).ToString()));
+    entry.push_back(Pair("changeaddress", CBitcoinAddress(ledgerChangeKey.address).ToString()));
+
+    return entry;
+}
+
 Value getrawchangeaddress(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
