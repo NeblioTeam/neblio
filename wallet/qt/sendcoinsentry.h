@@ -15,7 +15,7 @@ class SendCoinsEntry : public QFrame
     Q_OBJECT
 
 public:
-    explicit SendCoinsEntry(QWidget* parent = 0);
+    explicit SendCoinsEntry(QWidget* parent, bool enableNTP1Tokens);
     ~SendCoinsEntry();
 
     void updateNTP1TokensList();

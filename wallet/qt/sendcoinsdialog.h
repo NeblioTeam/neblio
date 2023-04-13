@@ -68,7 +68,7 @@ public:
     bool handleURI(const QString& uri);
 
 public slots:
-    void            clear();
+    void            clearEntries();
     void            reject();
     void            accept();
     SendCoinsEntry* addEntry();

@@ -10,9 +10,9 @@
 #include <QApplication>
 #include <QClipboard>
 
-SendCoinsEntry::SendCoinsEntry(QWidget* parent) : QFrame(parent), ui(new Ui::SendCoinsEntry), model(0)
+SendCoinsEntry::SendCoinsEntry(QWidget* parent, bool enableNTP1Tokens) : QFrame(parent), ui(new Ui::SendCoinsEntry), model(0)
 {
-    ui->setupUi(this);
+    ui->setupUi(this, enableNTP1Tokens);
 
 #ifdef Q_OS_MAC
     ui->payToLayout->setSpacing(4);

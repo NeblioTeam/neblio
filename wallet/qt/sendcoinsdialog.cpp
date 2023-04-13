@@ -70,7 +70,7 @@ SendCoinsDialog::SendCoinsDialog(QWidget* parent)
     connect(ui->addButton, &QPushButton::clicked, this, &SendCoinsDialog::addEntry);
     connect(ui->editMetadataButton, &QPushButton::clicked, this,
             &SendCoinsDialog::showEditMetadataDialog);
-    connect(ui->clearButton, &QPushButton::clicked, this, &SendCoinsDialog::clear);
+    connect(ui->clearButton, &QPushButton::clicked, this, &SendCoinsDialog::clearEntries);
 
     // Coin Control
     ui->lineEditCoinControlChange->setFont(GUIUtil::monospaceFont());
@@ -170,6 +170,9 @@ void SendCoinsDialog::on_ledgerCheckBox_toggled(bool checked)
         ui->allowSpendingDelegatedCoins->setDisabled(false);
         ui->sendButton->setText(tr("S&end"));
     }
+    // Ledger does not support NTP1 tokens
+    // entries need to be reset to set correct enableNTP1Tokens value
+    clearEntries();
 }
 
 void SendCoinsDialog::on_ledgerAddressBookButton_clicked()
@@ -437,7 +440,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     fNewRecipientAllowed = true;
 }
 
-void SendCoinsDialog::clear()
+void SendCoinsDialog::clearEntries()
 {
     // Remove entries until only one left
     while (ui->entries->count()) {
@@ -446,20 +449,22 @@ void SendCoinsDialog::clear()
     addEntry();
 
     updateRemoveEnabled();
+    tokenSelectionChanged();
 
     ui->sendButton->setDefault(true);
 }
 
-void SendCoinsDialog::reject() { clear(); }
+void SendCoinsDialog::reject() { clearEntries(); }
 
-void SendCoinsDialog::accept() { clear(); }
+void SendCoinsDialog::accept() { clearEntries(); }
 
 SendCoinsEntry* SendCoinsDialog::addEntry()
 {
     // metadata can be fixed if more recipients are added, so remove red color from the button
     ui->editMetadataButton->setStyleSheet("");
 
-    SendCoinsEntry* entry = new SendCoinsEntry(this);
+    bool enableNTP1Tokens = !ui->ledgerCheckBox->isChecked();
+    SendCoinsEntry* entry = new SendCoinsEntry(this, enableNTP1Tokens);
     entry->setModel(model);
     ui->entries->addWidget(entry);
     connect(entry, SIGNAL(removeEntry(SendCoinsEntry*)), this, SLOT(removeEntry(SendCoinsEntry*)));
@@ -497,6 +502,7 @@ void SendCoinsDialog::removeEntry(SendCoinsEntry* entry)
 {
     delete entry;
     updateRemoveEnabled();
+    tokenSelectionChanged();
 }
 
 QWidget* SendCoinsDialog::setupTabChain(QWidget* prev)
