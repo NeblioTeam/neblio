@@ -556,7 +556,7 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput>>& mapCoins) c
     const uint256 bestBlockHash = txdb.GetBestBlockHash();
 
     std::vector<COutput> vCoins;
-    wallet->AvailableCoins(txdb, vCoins);
+    wallet->AvailableCoins(txdb, vCoins, true, false, true, nullptr, "", true);
 
     LOCK2(cs_main, wallet->cs_wallet); // ListLockedCoins, mapWallet
     std::vector<COutPoint> vLockedCoins;

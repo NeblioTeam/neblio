@@ -1,4 +1,4 @@
-﻿#include "coincontroldialog.h"
+#include "coincontroldialog.h"
 #include "ui_coincontroldialog.h"
 
 #include "addresstablemodel.h"
@@ -6,6 +6,7 @@
 #include "coincontrol.h"
 #include "globals.h"
 #include "init.h"
+#include "ledger/bip32.h"
 #include "main.h"
 #include "ntp1/ntp1transaction.h"
 #include "optionsmodel.h"
@@ -118,6 +119,7 @@ CoinControlDialog::CoinControlDialog(QWidget* parent)
     ui->treeWidget->setColumnWidth(COLUMN_AMOUNT, 100);
     ui->treeWidget->setColumnWidth(COLUMN_LABEL, 170);
     ui->treeWidget->setColumnWidth(COLUMN_ADDRESS, 350);
+    ui->treeWidget->setColumnWidth(COLUMN_LEDGER_PATH, 170);
     ui->treeWidget->setColumnWidth(COLUMN_DATE, 110);
     ui->treeWidget->setColumnWidth(COLUMN_CONFIRMATIONS, 100);
     ui->treeWidget->setColumnWidth(COLUMN_PRIORITY, 100);
@@ -805,6 +807,15 @@ void CoinControlDialog::updateView()
             itemOutput->setText(COLUMN_LABEL, sTokenType);
 
             itemOutput->setText(COLUMN_ADDRESS, sTokenId);
+
+            CKeyID keyid = *boost::get<CKeyID>(&outputAddress);
+            CLedgerKey ledgerKey;
+            if (model->getWallet()->GetLedgerKey(keyid, ledgerKey)) {
+                std::string path = ledger::Bip32Path(ledgerKey.account, false, ledgerKey.index).ToString();
+                itemOutput->setText(COLUMN_LEDGER_PATH, QString::fromStdString(path));
+            } else {
+                itemOutput->setText(COLUMN_LEDGER_PATH, "-");
+            }
 
             // amount
             itemOutput->setText(COLUMN_AMOUNT,
