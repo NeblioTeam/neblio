@@ -295,6 +295,7 @@ udtoneblioaddress <unstoppable domain address>
 uptime
 validateaddress <neblioaddress>
 validatepubkey <nebliopubkey>
+verifyledgeraddress <accountindex> <ischange> <addressindex> <expectedaddress>
 verifymessage <neblioaddress> <signature> <message>
 waitforblockheight (timeout)
 ```

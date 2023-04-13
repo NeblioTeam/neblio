@@ -520,6 +520,38 @@ Value addledgeraddress(const Array& params, bool fHelp)
     return address;
 }
 
+Value verifyledgeraddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 4)
+        throw runtime_error("verifyledgeraddress <accountindex> <ischange> <addressindex> <expectedaddress>\n"
+                            "Verifies a Ledger address by exporting it from Ledger and comparing it to <expectedaddress>. "
+                            "Path m/44'/146'/<accountindex>'/0/<addressindex> is used to derive the address.");
+
+    auto accountIndex = params[0].get_int();
+    if (!ledgerbridge::LedgerBridge::ValidateAccountIndex(accountIndex))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid account index");
+
+    auto isChange = params[1].get_bool();
+
+    auto addressIndex = params[2].get_int();
+    if (!ledgerbridge::LedgerBridge::ValidateAddressIndex(addressIndex))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid address index");    
+
+    CBitcoinAddress expectedAddress(params[3].get_str());
+    if (!expectedAddress.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid expected address");
+
+    ledgerbridge::LedgerBridge ledgerBridge;
+    auto pubKeyBytes = ledgerBridge.GetPublicKey(accountIndex, isChange, addressIndex, true);
+    CPubKey pubKey(pubKeyBytes);
+    auto address = CBitcoinAddress(pubKey.GetID()).ToString();
+
+    if (address != expectedAddress.ToString())
+        throw JSONRPCError(RPC_MISC_ERROR, "Address received from Ledger doesn't match <expectedaddress>.");
+
+    return address;
+}
+
 Value getrawchangeaddress(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
