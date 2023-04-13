@@ -145,6 +145,17 @@ void SendCoinsDialog::setModel(WalletModel* modelIn)
 
 SendCoinsDialog::~SendCoinsDialog() { delete ui; }
 
+bool SendCoinsDialog::isAnyNTP1TokenSelected() const
+{
+    for (int i = 0; i < ui->entries->count(); ++i) {
+        SendCoinsEntry* entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+        if (entry && entry->isNTP1TokenSelected()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void SendCoinsDialog::on_ledgerCheckBox_toggled(bool checked)
 {
     if (checked) {
@@ -453,6 +464,7 @@ SendCoinsEntry* SendCoinsDialog::addEntry()
     ui->entries->addWidget(entry);
     connect(entry, SIGNAL(removeEntry(SendCoinsEntry*)), this, SLOT(removeEntry(SendCoinsEntry*)));
     connect(entry, SIGNAL(payAmountChanged()), this, SLOT(coinControlUpdateLabels()));
+    connect(entry, SIGNAL(payAmountChanged()), this, SLOT(tokenSelectionChanged()));
 
     updateRemoveEnabled();
 
@@ -728,4 +740,9 @@ void SendCoinsDialog::coinControlUpdateLabels()
         ui->widgetCoinControl->hide();
         ui->labelCoinControlInsuffFunds->hide();
     }
+}
+
+void SendCoinsDialog::tokenSelectionChanged()
+{
+    ui->ledgerTokenWarningLabel->setVisible(isAnyNTP1TokenSelected());
 }

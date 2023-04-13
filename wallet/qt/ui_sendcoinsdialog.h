@@ -91,6 +91,8 @@ public:
     QVBoxLayout*              entries;
     QSpacerItem*              verticalSpacer;
 
+    QLabel*                   ledgerTokenWarningLabel;
+
     QHBoxLayout*              horizontalLayout;
     QPushButton*              addButton;
     QPushButton*              editMetadataButton;
@@ -493,6 +495,11 @@ public:
 
         verticalLayout_2->addItem(verticalSpacer);
 
+        ledgerTokenWarningLabel = new QLabel(SendCoinsDialog);
+        ledgerTokenWarningLabel->setObjectName(QStringLiteral("ledgerTokenWarningLabel"));
+
+        verticalLayout_2->addWidget(ledgerTokenWarningLabel);
+
         scrollArea->setWidget(scrollAreaWidgetContents);
 
         verticalLayout->addWidget(scrollArea);
@@ -643,6 +650,8 @@ public:
             QApplication::translate("SendCoinsDialog", "Label:", Q_NULLPTR));
         ledgerPayFromNameEdit->setPlaceholderText(
             QApplication::translate("SendCoinsDialog", "A label for the Ledger address", Q_NULLPTR));
+        ledgerTokenWarningLabel->setText(
+            QApplication::translate("SendCoinsDialog", "Warning: Do not send NTP1 tokens to a Ledger address, they will become unspendable.", Q_NULLPTR));
 #ifndef QT_NO_TOOLTIP
         addButton->setToolTip(QApplication::translate("SendCoinsDialog",
                                                       "Send to multiple recipients at once", Q_NULLPTR));

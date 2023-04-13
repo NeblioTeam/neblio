@@ -46,6 +46,7 @@ public:
 
 signals:
     void textChanged();
+    void tokenChanged();
 
 public slots:
     void slot_updateTokensList();

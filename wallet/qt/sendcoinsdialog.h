@@ -84,6 +84,7 @@ private:
     bool                         fNewRecipientAllowed;
     WalletModel::SendCoinsReturn sendStatus;
 
+    bool isAnyNTP1TokenSelected() const;
 
 private slots:
     void on_ledgerCheckBox_toggled(bool checked);
@@ -106,6 +107,7 @@ private slots:
     void coinControlClipboardLowOutput();
     void coinControlClipboardChange();
     void updateAllTokenLists();
+    void tokenSelectionChanged();
 };
 
 #endif // SENDCOINSDIALOG_H

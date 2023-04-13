@@ -23,6 +23,7 @@ public:
     void               setModel(WalletModel* modelIn);
     bool               validate();
     SendCoinsRecipient getValue();
+    bool               isNTP1TokenSelected() const;
 
     /** Return whether the entry is still empty and unedited */
     bool isClear();

@@ -71,6 +71,7 @@ void SendCoinsEntry::setModel(WalletModel* modelIn)
                 SLOT(updateDisplayUnit()));
 
     connect(ui->payAmount, SIGNAL(textChanged()), this, SIGNAL(payAmountChanged()));
+    connect(ui->payAmount, SIGNAL(tokenChanged()), this, SIGNAL(payAmountChanged()));
 
     clear();
 }
@@ -124,6 +125,10 @@ SendCoinsRecipient SendCoinsEntry::getValue()
     rv.tokenId = ui->payAmount->getSelectedTokenId();
 
     return rv;
+}
+
+bool SendCoinsEntry::isNTP1TokenSelected() const {
+    return ui->payAmount->isNTP1TokenSelected();
 }
 
 QWidget* SendCoinsEntry::setupTabChain(QWidget* prev)
