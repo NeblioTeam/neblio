@@ -74,11 +74,23 @@ public:
     QLineEdit*                lineEditCoinControlChange;
     QLabel*                   labelCoinControlChangeLabel;
     QSpacerItem*              verticalSpacerCoinControl;
+
+    QCheckBox*                ledgerCheckBox;
+    QWidget*                  ledgerWidget;
+    QGridLayout*              ledgerGridLayout;
+    QLabel*                   ledgerPayFromAddressLabel;
+    QHBoxLayout*              ledgerPayFromAddressLayout;
+    QValidatedLineEdit*       ledgerPayFromAddressEdit;
+    QToolButton*              ledgerAddressBookButton;
+    QLabel*                   ledgerPayFromNameLabel;
+    QValidatedLineEdit*       ledgerPayFromNameEdit;
     QScrollArea*              scrollArea;
+
     QWidget*                  scrollAreaWidgetContents;
     QVBoxLayout*              verticalLayout_2;
     QVBoxLayout*              entries;
     QSpacerItem*              verticalSpacer;
+
     QHBoxLayout*              horizontalLayout;
     QPushButton*              addButton;
     QPushButton*              editMetadataButton;
@@ -90,16 +102,6 @@ public:
     QSpacerItem*              horizontalSpacer;
     QPushButton*              sendButton;
     NTP1CreateMetadataDialog* editMetadataDialog;
-
-    QCheckBox*                ledgerCheckBox;
-    QWidget*                  ledgerWidget;
-    QGridLayout*              ledgerGridLayout;
-    QLabel*                   ledgerPayFromAddressLabel;
-    QHBoxLayout*              ledgerPayFromAddressLayout;
-    QValidatedLineEdit*       ledgerPayFromAddressEdit;
-    QToolButton*              ledgerAddressBookButton;
-    QLabel*                   ledgerPayFromNameLabel;
-    QValidatedLineEdit*       ledgerPayFromNameEdit;
 
     void setupUi(QDialog* SendCoinsDialog)
     {
