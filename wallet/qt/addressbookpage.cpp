@@ -285,12 +285,6 @@ void AddressBookPage::on_verifyAddress_clicked()
         ledgerIndex = index.sibling(index.row(), AddressTableModel::LedgerIndex).data().toInt();
     }
 
-    CKeyID ledgerKeyId;
-    if (!CBitcoinAddress(ledgerAddress.toStdString()).GetKeyID(ledgerKeyId)) {
-        // Should be unreachable
-        return;
-    }
-
     QSharedPointer<VerifyLedgerAddressWorker> worker = QSharedPointer<VerifyLedgerAddressWorker>::create();
     ledger_ui::LedgerMessageBox msgBox(this, worker, tr("Verifying address: <tt>%1</tt>").arg(ledgerAddress));
     connect(worker.data(), SIGNAL(resultReady(QString)), this, SLOT(showVerifyAddressResult(QString)));

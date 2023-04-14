@@ -53,7 +53,6 @@ void IssueNewNTP1TokenDialog::createWidgets()
     paymentSeparator->setFrameShape(QFrame::HLine);
     paymentSeparator->setFrameShadow(QFrame::Sunken);
 
-    coinControlDialog = new CoinControlDialog(this);
     coinControlButton = new QPushButton("Coin control (Advanced)", this);
 
     iconUrlLabel->setText(

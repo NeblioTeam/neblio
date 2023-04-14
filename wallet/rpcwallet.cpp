@@ -495,7 +495,7 @@ Value addledgeraddress(const Array& params, bool fHelp)
     auto addressIndex = params[1].get_int();
     if (!ledgerbridge::LedgerBridge::ValidateAddressIndex(addressIndex))
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid address index");
-    
+
     auto label = AccountFromValue(params[2]);
     if (pwalletMain->CheckLabelAvailability(label, true) != LabelAvailability::AVAILABLE)
         throw JSONRPCError(RPC_WALLET_ERROR, "Label already exists");
@@ -547,18 +547,15 @@ Value getrawchangeaddress(const Array& params, bool fHelp)
 
 CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew = false)
 {
-    CTxDestination addressOut;
     // if account is a Ledger account, since we don't generate
     // new addresses for Ledger accounts so simply return the current one
-    if (
-        pwalletMain->GetAddressBookEntryByLabel(strAccount, addressOut) &&
-        addressOut.type() == typeid(CKeyID) &&
-        pwalletMain->HaveLedgerKey(*boost::get<CKeyID>(&addressOut))
-    ) {
+    if (pwalletMain->IsLabelUsedByLedger(strAccount)) {
         if (bForceNew) {
             throw JSONRPCError(RPC_MISC_ERROR, "Error: Can't overwrite Ledger account.");
         }
-        return CBitcoinAddress(*boost::get<CKeyID>(&addressOut));
+        CTxDestination addressOut;
+        pwalletMain->GetAddressBookEntryByLabel(strAccount, addressOut);
+        return CBitcoinAddress(addressOut);
     }
 
     CWalletDB walletdb(pwalletMain->strWalletFile);
@@ -683,7 +680,7 @@ Value getaddressesbyaccount(const Array& params, bool fHelp)
         const string&          strName = item.second.name;
         if (strName == strAccount) {
             ret.push_back(address.ToString());
-        
+
             CKeyID keyID;
             address.GetKeyID(keyID);
             // if account is a Ledger account, we also include associated change key

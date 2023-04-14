@@ -808,6 +808,7 @@ void CoinControlDialog::updateView()
 
             itemOutput->setText(COLUMN_ADDRESS, sTokenId);
 
+            // ledger path
             CKeyID keyid = *boost::get<CKeyID>(&outputAddress);
             CLedgerKey ledgerKey;
             if (model->getWallet()->GetLedgerKey(keyid, ledgerKey)) {

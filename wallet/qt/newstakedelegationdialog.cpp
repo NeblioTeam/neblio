@@ -55,8 +55,6 @@ void NewStakeDelegationDialog::createWidgets()
 
     timedMessageBox = new MessageBoxWithTimer();
 
-    coinControlDialog = new CoinControlDialog(this);
-
     createDelegationButton->setAutoDefault(false);
     cancelButton->setAutoDefault(false);
     clearButton->setAutoDefault(false);

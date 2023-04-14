@@ -14,7 +14,6 @@
 
 class NewStakeDelegationDialog;
 class CCoinControl;
-class CoinControlDialog;
 class WalletModel;
 class MessageBoxWithTimer;
 
@@ -41,7 +40,6 @@ class NewStakeDelegationDialog : public QDialog
     QCheckBox*   useDelegatedCheckbox;
     QFrame*      paymentSeparator;
 
-    CoinControlDialog* coinControlDialog;
     QPushButton*       coinControlButton;
 
     MessageBoxWithTimer* timedMessageBox;
