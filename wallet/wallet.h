@@ -437,6 +437,7 @@ public:
     CBitcoinAddress getNewStakingAddress(const std::string& label);
     CAmount         GetStakingBalance(const ITxDB& txdb, bool fIncludeColdStaking) const;
 
+    bool IsLedgerAddress(const CTxDestination& address) const;
     bool IsLabelUsedByLedger(const std::string& label);
     bool IsLabelUsableForLedger(const std::string& label);
     LabelAvailability CheckLabelAvailability(const std::string& label, bool isLedgerAddress);

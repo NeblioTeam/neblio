@@ -3719,20 +3719,21 @@ CAmount CWalletTx::GetCredit(const uint256& bestBlockHash, const ITxDB& txdb,
     return credit;
 }
 
+bool CWallet::IsLedgerAddress(const CTxDestination& address) const
+{
+    return address.type() == typeid(CKeyID) && HaveLedgerKey(boost::get<CKeyID>(address));
+}
+
 bool CWallet::IsLabelUsedByLedger(const std::string& label)
 {
-    CTxDestination addressOut;
-    return (
-        GetAddressBookEntryByLabel(label, addressOut) &&
-        addressOut.type() == typeid(CKeyID) &&
-        HaveLedgerKey(*boost::get<CKeyID>(&addressOut))
-    );
+    CTxDestination address;
+    return GetAddressBookEntryByLabel(label, address) && IsLedgerAddress(address);
 }
 
 bool CWallet::IsLabelUsableForLedger(const std::string& label)
 {
-    CTxDestination addressOut;
-    return !label.empty() && !GetAddressBookEntryByLabel(label, addressOut);
+    CTxDestination address;
+    return !label.empty() && !GetAddressBookEntryByLabel(label, address);
 }
 
 LabelAvailability CWallet::CheckLabelAvailability(const std::string& label, bool isLedgerAddress)

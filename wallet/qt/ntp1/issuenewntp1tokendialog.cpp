@@ -472,7 +472,7 @@ void IssueNewNTP1TokenDialog::slot_iconUrlChanged(const QString& url)
 
 void IssueNewNTP1TokenDialog::slot_coinControlButtonClicked()
 {
-    CoinControlDialog dlg;
+    CoinControlDialog dlg(this, false, QString());
     dlg.setModel(walletModel);
     dlg.exec(); // this is synchornous, so it wont' return until finished
 }

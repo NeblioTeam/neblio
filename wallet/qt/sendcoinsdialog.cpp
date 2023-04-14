@@ -184,6 +184,7 @@ void SendCoinsDialog::on_ledgerAddressBookButton_clicked()
     if (dlg.exec()) {
         ui->ledgerPayFromAddressEdit->setText(dlg.getReturnAddress());
         ui->ledgerPayFromNameEdit->setText(dlg.getReturnLabel());
+        ui->ledgerPayFromNameEdit->setStyleSheet("");
     }
 }
 
@@ -299,6 +300,11 @@ void SendCoinsDialog::on_sendButton_clicked()
         coinControl = CoinControlDialog::coinControl;
 
     auto fLedgerTx = ui->ledgerCheckBox->isChecked();
+
+    if (fLedgerTx && ui->ledgerPayFromNameEdit->text().isEmpty()) {
+        ui->ledgerPayFromNameEdit->setStyleSheet(STYLE_INVALID);
+        return;
+    }
 
     std::string strFromAccount = "";
     if (fLedgerTx)
@@ -666,7 +672,20 @@ void SendCoinsDialog::coinControlFeatureChanged(bool checked)
 // Coin Control: button inputs -> show actual coin control dialog
 void SendCoinsDialog::coinControlButtonClicked()
 {
-    CoinControlDialog dlg;
+    bool fLedgerTx = false;
+    QString fromAccount;
+    if (ui->ledgerCheckBox->isChecked()) {
+        if (ui->ledgerPayFromNameEdit->text().isEmpty()) {
+            QMessageBox::warning(
+                this, windowTitle(),
+                "You must specify the Ledger account you want to pay from before selecting the coins.");
+            ui->ledgerPayFromNameEdit->setStyleSheet(STYLE_INVALID);
+            return;
+        }
+        fLedgerTx = true;
+        fromAccount = ui->ledgerPayFromNameEdit->text();
+    }
+    CoinControlDialog dlg(this, fLedgerTx, fromAccount);
     dlg.setModel(model);
     dlg.exec();
     coinControlUpdateLabels();

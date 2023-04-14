@@ -21,7 +21,7 @@ class CoinControlDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit CoinControlDialog(QWidget* parent = 0);
+    explicit CoinControlDialog(QWidget* parent, bool fLedgerTxIn, QString fromAccountIn);
     ~CoinControlDialog();
 
     void setModel(WalletModel* modelIn);
@@ -45,6 +45,8 @@ private:
     QAction*         copyTransactionOutputIndexAction;
     // QAction *lockAction;
     // QAction *unlockAction;
+    bool fLedgerTx;
+    QString fromAccount;
 
     QString strPad(QString, int, QString);
     void    sortView(int, Qt::SortOrder);

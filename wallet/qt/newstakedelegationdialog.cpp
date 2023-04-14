@@ -349,7 +349,7 @@ void NewStakeDelegationDialog::slot_createColdStake()
 
 void NewStakeDelegationDialog::slot_coinControlButtonClicked()
 {
-    CoinControlDialog dlg;
+    CoinControlDialog dlg(this, false, QString());
     dlg.setModel(walletModel);
     dlg.exec(); // this is synchornous, so it wont' return until finished
 }

@@ -8,12 +8,14 @@ class CCoinControl
 {
 public:
     CTxDestination destChange;
+    bool           fLedgerTx = false;
 
     CCoinControl() { SetNull(); }
 
     void SetNull()
     {
         destChange = CNoDestination();
+        fLedgerTx = false;
         setSelected.clear();
     }
 

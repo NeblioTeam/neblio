@@ -29,10 +29,18 @@ using namespace std;
 QList<qint64> CoinControlDialog::payAmounts;
 CCoinControl* CoinControlDialog::coinControl = new CCoinControl();
 
-CoinControlDialog::CoinControlDialog(QWidget* parent)
+CoinControlDialog::CoinControlDialog(QWidget* parent, bool fLedgerTxIn, QString fromAccountIn)
     : QDialog(parent), ui(new Ui::CoinControlDialog), model(0)
 {
     ui->setupUi(this);
+
+    fLedgerTx = fLedgerTxIn;
+    fromAccount = fromAccountIn;
+    if (coinControl->fLedgerTx != fLedgerTx) {
+        // the ledger-only flag has changed, reset the coin control global state
+        coinControl->UnSelectAll();
+        coinControl->fLedgerTx = fLedgerTx;
+    }
 
     // context menu actions
     QAction* copyAddressAction = new QAction(tr("Copy address/Token ID"), this);
@@ -679,8 +687,20 @@ void CoinControlDialog::updateView()
         QTreeWidgetItem* itemWalletAddress = new QTreeWidgetItem();
         QString          sWalletAddress    = coins.first;
         QString          sWalletLabel      = "";
+        CTxDestination   walletAddress     = CBitcoinAddress(sWalletAddress.toStdString()).Get();
+
         if (model->getAddressTableModel())
             sWalletLabel = model->getAddressTableModel()->labelForAddress(sWalletAddress);
+
+        if (fLedgerTx && sWalletLabel != fromAccount) {
+            // select only outputs on the specified Ledger address
+            continue;
+        }
+        if (!fLedgerTx && model->getWallet()->IsLedgerAddress(walletAddress)) {
+            // skip outputs on Ledger addresses
+            continue;
+        }
+
         if (sWalletLabel.length() == 0)
             sWalletLabel = tr("(no label)");
 
@@ -699,6 +719,15 @@ void CoinControlDialog::updateView()
 
             // address
             itemWalletAddress->setText(COLUMN_ADDRESS, sWalletAddress);
+
+            // ledger path
+            CLedgerKey ledgerKey;
+            if (model->getWallet()->GetLedgerKey(boost::get<CKeyID>(walletAddress), ledgerKey)) {
+                std::string path = ledger::Bip32Path(ledgerKey.account, false, ledgerKey.index).ToString();
+                itemWalletAddress->setText(COLUMN_LEDGER_PATH, QString::fromStdString(path));
+            } else {
+                itemWalletAddress->setText(COLUMN_LEDGER_PATH, "-");
+            }
         }
 
         int64_t nSum         = 0;
@@ -807,16 +836,6 @@ void CoinControlDialog::updateView()
             itemOutput->setText(COLUMN_LABEL, sTokenType);
 
             itemOutput->setText(COLUMN_ADDRESS, sTokenId);
-
-            // ledger path
-            CKeyID keyid = *boost::get<CKeyID>(&outputAddress);
-            CLedgerKey ledgerKey;
-            if (model->getWallet()->GetLedgerKey(keyid, ledgerKey)) {
-                std::string path = ledger::Bip32Path(ledgerKey.account, false, ledgerKey.index).ToString();
-                itemOutput->setText(COLUMN_LEDGER_PATH, QString::fromStdString(path));
-            } else {
-                itemOutput->setText(COLUMN_LEDGER_PATH, "-");
-            }
 
             // amount
             itemOutput->setText(COLUMN_AMOUNT,
