@@ -1,4 +1,4 @@
-#include "ledger/utils.h"
+#include "utils.h"
 
 #include <algorithm>
 #include <iostream>
@@ -12,23 +12,23 @@ namespace ledger
 	{
 		if (data[offset] < 0xfd)
 		{
-			return {data[offset], 1};
+			return std::make_tuple(data[offset], 1);
 		}
 
 		if (data[offset] == 0xfd)
 		{
-			return {(data[offset + 2] << 8) + data[offset + 1], 3};
+			return std::make_tuple((data[offset + 2] << 8) + data[offset + 1], 3);
 		}
 
 		if (data[offset] == 0xfe)
 		{
-			return {
+			return std::make_tuple(
 				(data[offset + 4] << 24) +
 					(data[offset + 3] << 16) +
 					(data[offset + 2] << 8) +
 					data[offset + 1],
-				5,
-			};
+				5
+			);
 		}
 	}
 

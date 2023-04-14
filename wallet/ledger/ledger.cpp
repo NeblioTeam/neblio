@@ -1,10 +1,10 @@
-#include "base58.h"
+#include "ledger.h"
+#include "error.h"
 #include "hash.h"
-#include "ledger/ledger.h"
-#include "ledger/error.h"
-#include "ledger/utils.h"
-#include "ledger/bip32.h"
-#include "ledger/tx.h"
+#include "utils.h"
+#include "base58.h"
+#include "bip32.h"
+#include "tx.h"
 
 #include <algorithm>
 #include <cassert>
@@ -45,7 +45,7 @@ namespace ledger
 		if (offset != buffer.size())
 			throw LedgerException(ErrorCode::UNRECOGNIZED_ERROR);
 
-		return {pubKey, std::string(address.begin(), address.end()), chainCode};
+		return std::make_tuple(pubKey, std::string(address.begin(), address.end()), chainCode);
 	}
 
 	bytes Ledger::GetTrustedInputRaw(bool firstRound, const bytes &transactionData)
@@ -170,7 +170,7 @@ namespace ledger
 		}
 	}
 
-    std::vector<std::tuple<int, bytes>> Ledger::SignTransaction(const Tx &tx, bool hasChange, const Bip32Path changePath, const std::vector<Bip32Path>& signPaths, const std::vector<Utxo> &utxos)
+    std::vector<bytes> Ledger::SignTransaction(const Tx &tx, bool hasChange, const Bip32Path changePath, const std::vector<Bip32Path>& signPaths, const std::vector<Utxo> &utxos)
 	{
 		assert(tx.inputs.size() == signPaths.size());
 		assert(tx.inputs.size() == utxos.size());
@@ -189,7 +189,7 @@ namespace ledger
 			trustedInputs.push_back(trustedInput);
 		}
 
-        std::vector<std::tuple<int, bytes>> signatures;
+        std::vector<bytes> signatures;
 		for (auto i = 0; i < tx.inputs.size(); i++)
 		{
 			auto &script = utxos[i].tx.outputs[utxos[i].outputIndex].script;
@@ -216,11 +216,11 @@ namespace ledger
 				bytes data;
 				data.push_back(0x30);
 				AppendVector(data, bytes(buffer.begin() + 1, buffer.end()));
-				signatures.push_back({1, data});
+				signatures.push_back(data);
 			}
 			else
 			{
-				signatures.push_back({0, buffer});
+				throw LedgerException(ErrorCode::UNRECOGNIZED_ERROR);
 			}
 		}
 

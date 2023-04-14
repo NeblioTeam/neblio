@@ -82,7 +82,7 @@ namespace ledgerbridge
 
         // add signatures to tx and verify
         for (auto sigIndex = 0; sigIndex < signTxResults.size(); sigIndex++) {
-            auto signature = std::get<1>(signTxResults[sigIndex]);
+            auto signature = signTxResults[sigIndex];
 
             auto pubKey = CPubKey(GetPublicKey(ledger, signaturePaths[sigIndex], false));
 
