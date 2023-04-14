@@ -216,7 +216,7 @@ QString BitcoinAmountField::getSelectedTokenId() const
             return tokenKindsList.at(selectedIndex - 1).tokenId; // element 0 is NEBL
         }
     }
-    return "";
+    return QString::fromStdString(NTP1SendTxData::NEBL_TOKEN_ID);
 }
 
 bool BitcoinAmountField::isNTP1TokenSelected() const
