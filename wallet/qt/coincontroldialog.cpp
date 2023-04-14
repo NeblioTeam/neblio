@@ -41,6 +41,9 @@ CoinControlDialog::CoinControlDialog(QWidget* parent, bool fLedgerTxIn, QString 
         coinControl->UnSelectAll();
         coinControl->fLedgerTx = fLedgerTx;
     }
+    if (fLedgerTx) {
+        ui->labelFiltering->setText(tr("(only Ledger account \"%1\" is shown)").arg(fromAccount));
+    }
 
     // context menu actions
     QAction* copyAddressAction = new QAction(tr("Copy address/Token ID"), this);

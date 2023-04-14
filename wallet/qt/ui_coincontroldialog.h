@@ -60,6 +60,7 @@ public:
     QPushButton *pushButtonSelectAll;
     QRadioButton *radioTreeMode;
     QRadioButton *radioListMode;
+    QLabel *labelFiltering;
     QSpacerItem *horizontalSpacer;
     CoinControlTreeWidget *treeWidget;
     QDialogButtonBox *buttonBox;
@@ -280,6 +281,14 @@ public:
 
         horizontalLayoutPanel->addWidget(radioListMode);
 
+        labelFiltering = new QLabel(horizontalLayoutWidget);
+        labelFiltering->setObjectName(QStringLiteral("labelFiltering"));
+        sizePolicy.setHeightForWidth(labelFiltering->sizePolicy().hasHeightForWidth());
+        labelFiltering->setSizePolicy(sizePolicy);
+        labelFiltering->setStyleSheet("color:#808080");
+
+        horizontalLayoutPanel->addWidget(labelFiltering);
+
         horizontalSpacer = new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
 
         horizontalLayoutPanel->addItem(horizontalSpacer);
@@ -332,6 +341,7 @@ public:
         pushButtonSelectAll->setText(QApplication::translate("CoinControlDialog", "(un)select all", Q_NULLPTR));
         radioTreeMode->setText(QApplication::translate("CoinControlDialog", "Tree mode", Q_NULLPTR));
         radioListMode->setText(QApplication::translate("CoinControlDialog", "List mode", Q_NULLPTR));
+        labelFiltering->setText(QApplication::translate("CoinControlDialog", "(only non-Ledger addresses are shown)", Q_NULLPTR));
         QTreeWidgetItem *___qtreewidgetitem = treeWidget->headerItem();
         ___qtreewidgetitem->setText(8, QApplication::translate("CoinControlDialog", "Delegated", Q_NULLPTR));
         ___qtreewidgetitem->setText(7, QApplication::translate("CoinControlDialog", "Priority", Q_NULLPTR));
