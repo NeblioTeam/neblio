@@ -1,6 +1,5 @@
 #include "ledger/error.h"
 #include "ledger/hid.h"
-#include "ledger/speculos.h"
 #include "ledger/transport.h"
 #include "ledger/utils.h"
 
@@ -14,8 +13,7 @@ namespace ledger
             comm = std::unique_ptr<HID>(new HID());
             break;
 		case TransportType::SPECULOS:
-            comm = std::unique_ptr<Speculos>(new Speculos());
-			break;
+			throw LedgerException(ErrorCode::UNRECOGNIZED_ERROR);
 		}
 	}
 
