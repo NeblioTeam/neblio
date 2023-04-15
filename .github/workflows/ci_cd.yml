@@ -70,7 +70,7 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: nebliod
+        name: nebliod-linux.tar.gz
         path: ${{ github.workspace }}/deploy/*nebliod*.tar.gz
 
 
@@ -102,7 +102,7 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: neblio-qt
+        name: neblio-qt-linux.tar.gz
         path: ${{ github.workspace }}/deploy/*neblio-Qt*.tar.gz
 
 
@@ -151,7 +151,7 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: neblio-qt
+        name: neblio-qt-windows.zip
         path: ${{ github.workspace }}/deploy/*neblio-Qt*.zip
 
 
