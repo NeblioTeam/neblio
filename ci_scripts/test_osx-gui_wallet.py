@@ -35,7 +35,8 @@ nci.call_with_err_code('brew uninstall --ignore-dependencies openssl@1.1 || true
 nci.call_with_err_code('brew uninstall --ignore-dependencies qrencode || true')
 nci.call_with_err_code('brew uninstall --ignore-dependencies libsodium || true')
 nci.call_with_err_code('brew uninstall --ignore-dependencies icu4c || true')
-nci.call_with_err_code('brew uninstall --ignore-dependencies node@14 || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies node@16 || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies hidapi || true')
 
 
 # pin dependencies we do not want to be auto-upgraded while installing the dependencies we need
@@ -52,11 +53,10 @@ nci.call_retry_on_fail('brew pin qt')
 #berkeley-db@4 https://bintray.com/homebrew/bottles/download_file?file_path=berkeley-db%404-4.8.30.high_sierra.bottle.1.tar.gz
 nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/berkeley-db%404-4.8.30.high_sierra.bottle.1.tar.gz')
 nci.call_retry_on_fail('brew pin berkeley-db@4')
-#node@14 https://homebrew.bintray.com/bottles/node@14-14.15.0.high_sierra.bottle.tar.gz
-nci.call_retry_on_fail('brew install --force --ignore-dependencies https://assets.nebl.io/dependencies/macos/node@14-14.15.0.high_sierra.bottle.tar.gz')
-nci.call_retry_on_fail('brew pin node@14')
+#node@16
+nci.call_retry_on_fail('brew install --force --ignore-dependencies node@16')
 #icu4c https://homebrew.bintray.com/bottles/icu4c-67.1.high_sierra.bottle.tar.gz
-nci.call_retry_on_fail('brew install --force --ignore-dependencies https://assets.nebl.io/dependencies/macos/icu4c-67.1.high_sierra.bottle.tar.gz')
+nci.call_retry_on_fail('brew install icu4c')
 nci.call_retry_on_fail('brew pin icu4c')
 #boost https://homebrew.bintray.com/bottles/boost-1.72.0_3.high_sierra.bottle.tar.gz
 nci.call_retry_on_fail('brew install --force --ignore-dependencies https://assets.nebl.io/dependencies/macos/boost-1.72.0_3.high_sierra.bottle.tar.gz')
@@ -76,7 +76,9 @@ nci.call_retry_on_fail('brew pin qrencode')
 #libsodium https://bintray.com/homebrew/bottles/download_file?file_path=libsodium-1.0.18_1.high_sierra.bottle.tar.gz
 nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/libsodium-1.0.18_1.high_sierra.bottle.tar.gz')
 nci.call_retry_on_fail('brew pin libsodium')
-
+# hidapi
+nci.call_retry_on_fail('brew install hidapi')
+nci.call_retry_on_fail('brew pin hidapi')
 
 
 # force relinking
@@ -90,11 +92,22 @@ nci.call_with_err_code('brew unlink openssl@1.1   && brew link --force --overwri
 nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
 nci.call_with_err_code('brew unlink libsodium     && brew link --force --overwrite libsodium')
 nci.call_with_err_code('brew unlink icu4c         && brew link --force --overwrite icu4c')
-nci.call_with_err_code('brew unlink node@14       && brew link --force --overwrite node@14')
+nci.call_with_err_code('brew unlink node@16       && brew link --force --overwrite node@16')
+nci.call_with_err_code('brew unlink hidapi        && brew link --force --overwrite hidapi')
 
 # debug icu4c linking issues
-#nci.call_with_err_code('ls -al /usr/local/opt/icu4c/lib/')
+# print("ls-ing icu4c lib")
 
+# libicu linking hack - create symlinks from version 71 binaries to version 67. This is a hack around
+# outdated Qt version (probably). It's no longer possible to install icu4c 67.1 and
+# some other dependency (most probably Qt) depends on v 67.1. Another part of the hack
+# is the update to ../contrib/macdeploy/macdeployqtplus.
+nci.call_with_err_code('ln -s /usr/local/opt/icu4c/lib/libicudata.71.1.dylib /usr/local/opt/icu4c/lib/libicudata.67.dylib')
+nci.call_with_err_code('ln -s /usr/local/opt/icu4c/lib/libicui18n.71.1.dylib /usr/local/opt/icu4c/lib/libicui18n.67.dylib')
+nci.call_with_err_code('ln -s /usr/local/opt/icu4c/lib/libicuio.71.1.dylib /usr/local/opt/icu4c/lib/libicuio.67.dylib')
+nci.call_with_err_code('ln -s /usr/local/opt/icu4c/lib/libicutest.71.1.dylib /usr/local/opt/icu4c/lib/libicutest.67.dylib')
+nci.call_with_err_code('ln -s /usr/local/opt/icu4c/lib/libicutu.71.1.dylib /usr/local/opt/icu4c/lib/libicutu.67.dylib')
+nci.call_with_err_code('ln -s /usr/local/opt/icu4c/lib/libicuuc.71.1.dylib /usr/local/opt/icu4c/lib/libicuuc.67.dylib')
 
 nci.call_with_err_code('ccache -s')
 nci.call_with_err_code('ccache -z')
@@ -119,7 +132,7 @@ else:
     # build our .dmg
     nci.call_with_err_code('npm install -g appdmg')
     os.chdir("wallet")
-    nci.call_with_err_code('../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -verbose 1 -rpath /usr/local/opt/qt/lib')
+    nci.call_with_err_code('../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -verbose 3 -rpath /usr/local/opt/qt/lib')
     nci.call_with_err_code('/usr/local/bin/appdmg ../../contrib/macdeploy/appdmg.json ./neblio-Qt.dmg')
 
     file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---neblio-Qt---macOS.zip'

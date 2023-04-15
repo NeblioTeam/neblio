@@ -180,6 +180,11 @@ jobs:
         files: ${{ env.SOURCE_PATH }}
         repo-token: ${{ secrets.GHAT2 }}
         release-tag: ${{ env.RELEASE_TAG }}
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: neblio-qt-mac.zip
+        path: ${{ github.workspace }}/deploy/*neblio-Qt*.zip
 
 
   osx_test:
