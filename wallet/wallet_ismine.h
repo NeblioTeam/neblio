@@ -14,7 +14,7 @@ class CKeyStore;
 class CScript;
 
 /** IsMine() return codes */
-enum isminetype : uint
+enum isminetype : uint_fast16_t
 {
     ISMINE_NO = 0,
     //! Indicates that we dont know how to create a scriptSig that would solve this if we were given the

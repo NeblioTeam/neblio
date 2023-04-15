@@ -179,4 +179,21 @@ public:
 /** Check that required EC support is available at runtime */
 bool ECC_InitSanityCheck(void);
 
+class CLedgerKey
+{
+public:
+    CPubKey vchPubKey;
+    CKeyID accountPubKeyID;
+    uint32_t account;
+    bool isChange;
+    uint32_t index;
+
+    CLedgerKey() {}
+
+    CLedgerKey(const CPubKey& vchPubKeyIn, const CKeyID& accountPubKeyIDIn, uint32_t accountIn, bool isChangeIn, uint32_t indexIn) :
+        vchPubKey(vchPubKeyIn), accountPubKeyID(accountPubKeyIDIn), account(accountIn), isChange(isChangeIn), index(indexIn) {};
+
+    IMPLEMENT_SERIALIZE(READWRITE(vchPubKey); READWRITE(accountPubKeyID); READWRITE(account); READWRITE(isChange); READWRITE(index);)
+};
+
 #endif

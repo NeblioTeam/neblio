@@ -1,5 +1,4 @@
 #ifndef LEDGERBRIDGE_H
-#define LEDGERBRIDGE_H
 
 #include "ledger/bip32.h"
 #include "ledger/tx.h"
@@ -9,7 +8,6 @@
 
 #include "itxdb.h"
 #include "wallet.h"
-#include "script.h"
 
 #include <vector>
 

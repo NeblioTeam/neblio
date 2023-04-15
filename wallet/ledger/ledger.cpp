@@ -1,10 +1,8 @@
-#include "ledger.h"
-#include "error.h"
-#include "hash.h"
-#include "utils.h"
-#include "base58.h"
-#include "bip32.h"
-#include "tx.h"
+#include "ledger/ledger.h"
+#include "ledger/error.h"
+#include "ledger/utils.h"
+#include "ledger/bip32.h"
+#include "ledger/tx.h"
 
 #include <algorithm>
 #include <cassert>

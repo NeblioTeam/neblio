@@ -2,7 +2,6 @@
 #include "ledger/utils.h"
 #include "ledgerBridge.h"
 #include "key.h"
-#include "script.h"
 
 #include <string>
 #include <stdexcept>

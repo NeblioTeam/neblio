@@ -17,7 +17,6 @@ using namespace boost;
 #include "script.h"
 #include "sync.h"
 #include "util.h"
-#include "wallet.h"
 
 template <typename T>
 std::vector<unsigned char> ToByteVector(const T& in)
@@ -1618,7 +1617,11 @@ public:
     isminetype operator()(const CNoDestination& /*dest*/) const { return isminetype::ISMINE_NO; }
     isminetype operator()(const CKeyID& keyID) const
     {
-        return keystore->HaveKey(keyID) ? isminetype::ISMINE_SPENDABLE : isminetype::ISMINE_NO;
+        return keystore->HaveKey(keyID)
+            ? isminetype::ISMINE_SPENDABLE
+            : keystore->HaveLedgerKey(keyID)
+                ? isminetype::ISMINE_LEDGER 
+                : isminetype::ISMINE_NO;
     }
     isminetype operator()(const CScriptID& scriptID) const
     {
@@ -1626,31 +1629,9 @@ public:
     }
 };
 
-class CWalletIsMineVisitor : public boost::static_visitor<isminetype>
-{
-private:
-    const CWallet* wallet;
-
-public:
-    CWalletIsMineVisitor(const CWallet* walletIn): wallet(walletIn){};
-    isminetype operator()(const CNoDestination& /*dest*/) const { return isminetype::ISMINE_NO; }
-    isminetype operator()(const CKeyID& keyID) const
-    {
-        return wallet->HaveLedgerKey(keyID) ? isminetype::ISMINE_LEDGER : isminetype::ISMINE_NO;
-    }
-    isminetype operator()(const CScriptID& scriptID) const    {return isminetype::ISMINE_NO;    }
-};
-
 isminetype IsMine(const CKeyStore& keystore, const CTxDestination& dest)
 {
-    auto isMineKey = boost::apply_visitor(CKeyStoreIsMineVisitor(&keystore), dest);
-    if (isMineKey != isminetype::ISMINE_NO)
-    {
-        return isMineKey;
-    }
-
-    const CWallet *wallet = (CWallet*) &keystore;
-    return boost::apply_visitor(CWalletIsMineVisitor(wallet), dest);
+    return boost::apply_visitor(CKeyStoreIsMineVisitor(&keystore), dest);
 }
 
 isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey)
@@ -1660,8 +1641,6 @@ isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey)
     if (!Solver(CTxDB(), scriptPubKey, whichType, vSolutions))
         return isminetype::ISMINE_NO;
 
-    // TODO GK - refactor
-    const CWallet *wallet = (CWallet*) &keystore;
     CKeyID keyID;
     switch (whichType) {
     case TX_NONSTANDARD:
@@ -1671,14 +1650,14 @@ isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey)
         keyID = CPubKey(vSolutions[0]).GetID();
         if (keystore.HaveKey(keyID))
             return isminetype::ISMINE_SPENDABLE;
-        if (wallet->HaveLedgerKey(keyID))
+        if (keystore.HaveLedgerKey(keyID))
             return isminetype::ISMINE_LEDGER;
         break;
     case TX_PUBKEYHASH:
         keyID = CKeyID(uint160(vSolutions[0]));
         if (keystore.HaveKey(keyID))
             return isminetype::ISMINE_SPENDABLE;
-        if (wallet->HaveLedgerKey(keyID))
+        if (keystore.HaveLedgerKey(keyID))
             return isminetype::ISMINE_LEDGER;
         break;
     case TX_SCRIPTHASH: {

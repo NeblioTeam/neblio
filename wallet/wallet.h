@@ -221,6 +221,7 @@ public:
     CPubKey GenerateNewKey();
     // Adds a key to the store, and saves it to disk.
     bool AddKey(const CKey& key);
+    bool AddLedgerKey(const CLedgerKey& ledgerKey);
     // Adds a key to the store, without saving it to disk (used by LoadWallet)
     bool LoadKey(const CKey& key) { return CCryptoKeyStore::AddKey(key); }
     // Load metadata (used by LoadWallet)
@@ -376,7 +377,7 @@ public:
      * @note called with lock cs_wallet held.
      */
     boost::signals2::signal<void(CWallet* wallet, const CTxDestination& address,
-                                 const std::string& label, uint isMine, const std::string& purpose,
+                                 const std::string& label, uint64_t isMine, const std::string& purpose,
                                  ChangeType status)>
         NotifyAddressBookChanged;
 
@@ -442,113 +443,6 @@ public:
     bool IsLabelUsableForLedger(const std::string& label);
     LabelAvailability CheckLabelAvailability(const std::string& label, bool isLedgerAddress);
     std::string ImportLedgerKey(int accountIndex, int addressIndex);
-
-    mutable CCriticalSection cs_LedgerKeyStore;
-
-    // TODO GK - LedgerKeyStore class? (this is copied from keystore)
-    std::map<CKeyID, CLedgerKey> ledgerKeys;
-    bool HaveLedgerKey(const CKeyID &address) const
-    {
-        bool result;
-        {
-            LOCK(cs_LedgerKeyStore);
-            result = (ledgerKeys.count(address) > 0);
-        }
-        return result;
-    }
-
-    bool AddLedgerKey(const CLedgerKey& ledgerKey)
-    {
-        {
-            LOCK(cs_LedgerKeyStore);
-            ledgerKeys[ledgerKey.vchPubKey.GetID()] = ledgerKey;
-        }
-        if (!fFileBacked)
-            return true;
-
-        // TODO DM do we need the lock here?
-        return CWalletDB(strWalletFile).WriteLedgerKey(ledgerKey);
-    }
-
-    bool LoadLedgerKey(const CLedgerKey& ledgerKey)
-    {
-        {
-            LOCK(cs_LedgerKeyStore);
-            ledgerKeys[ledgerKey.vchPubKey.GetID()] = ledgerKey;
-        }
-        return true;
-    }
-
-    void GetLedgerKeys(std::set<CKeyID> &setAddress) const
-    {
-        setAddress.clear();
-        {
-            LOCK(cs_LedgerKeyStore);
-            std::map<CKeyID, CLedgerKey> ::const_iterator mi = ledgerKeys.begin();
-            while (mi != ledgerKeys.end())
-            {
-                setAddress.insert((*mi).first);
-                mi++;
-            }
-        }
-    }
-
-    bool GetLedgerKey(const CKeyID &address, CLedgerKey &ledgerKeyOut) const
-    {
-        {
-            LOCK(cs_LedgerKeyStore);
-            std::map<CKeyID, CLedgerKey> ::const_iterator mi = ledgerKeys.find(address);
-            if (mi != ledgerKeys.end())
-            {
-                ledgerKeyOut = (*mi).second;
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /*
-        Returns the "other" Ledger key for a given key. "Other" means that for a payment key
-        we return the corresponding change key and vice versa.
-    */
-    bool GetOtherLedgerKey(const CKeyID &address, CLedgerKey &ledgerKeyOut, bool isChange) const
-    {
-        {
-            LOCK(cs_LedgerKeyStore);
-            std::map<CKeyID, CLedgerKey> ::const_iterator mi = ledgerKeys.find(address);
-            if (mi != ledgerKeys.end())
-            {
-                auto key = (*mi).second;
-                if (key.isChange != isChange) {
-                    throw std::runtime_error("Function called with wrong isChange parameter");
-                }
-
-                auto it = std::find_if(ledgerKeys.begin(), ledgerKeys.end(),
-                    [&key](const std::pair<CKeyID, CLedgerKey>& entry) {
-                        auto candidateKey = entry.second;
-                        return candidateKey.isChange != key.isChange
-                            && candidateKey.accountPubKeyID == key.accountPubKeyID
-                            && candidateKey.index == key.index;
-                    });
-
-                if (it != ledgerKeys.end()) {
-                    ledgerKeyOut = it->second;
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    bool IsLedgerChangeKey(const CKeyID &address) const
-    {
-        CLedgerKey ledgerKey;
-        if (GetLedgerKey(address, ledgerKey))
-        {
-            return ledgerKey.isChange;
-        }
-        return false;
-    }
 };
 
 /** A key allocated from the key pool. */

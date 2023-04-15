@@ -22,7 +22,6 @@
 #include "ledger/ledger.h"
 #include "ledger/utils.h"
 #include "ledgerBridge.h"
-#include "script.h"
 
 using namespace std;
 
@@ -116,6 +115,16 @@ bool CWallet::AddKey(const CKey& key)
         return CWalletDB(strWalletFile)
             .WriteKey(pubkey, key.GetPrivKey(), mapKeyMetadata[pubkey.GetID()]);
     return true;
+}
+
+bool CWallet::AddLedgerKey(const CLedgerKey& ledgerKey)
+{
+    CBasicKeyStore::AddLedgerKey(ledgerKey);
+    if (!fFileBacked)
+        return true;
+
+    // TODO DM do we need the lock here?
+    return CWalletDB(strWalletFile).WriteLedgerKey(ledgerKey);
 }
 
 bool CWallet::AddCryptedKey(const CPubKey& vchPubKey, const vector<unsigned char>& vchCryptedSecret)
