@@ -256,7 +256,6 @@ OBJS= \
     obj/ledger/error.o                        \
     obj/ledger/hid.o                          \
     obj/ledger/ledger.o                       \
-    obj/ledger/speculos.o                     \
     obj/ledger/transport.o                    \
     obj/ledger/tx.o                           \
     obj/ledger/utils.o                        \
