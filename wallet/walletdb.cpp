@@ -67,8 +67,6 @@ bool CWalletDB::WriteLedgerKey(const CLedgerKey& ledgerKey)
     return Write(std::make_pair(std::string("ledgerkey"), ledgerKey.vchPubKey.Raw()), ledgerKey, false);
 }
 
-// TODO DM: EraseLedgerKey?
-
 bool CWalletDB::WriteCryptedKey(const CPubKey&                    vchPubKey,
                                 const std::vector<unsigned char>& vchCryptedSecret,
                                 const CKeyMetadata&               keyMeta)

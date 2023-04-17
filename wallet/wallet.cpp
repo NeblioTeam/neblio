@@ -123,7 +123,6 @@ bool CWallet::AddLedgerKey(const CLedgerKey& ledgerKey)
     if (!fFileBacked)
         return true;
 
-    // TODO DM do we need the lock here?
     return CWalletDB(strWalletFile).WriteLedgerKey(ledgerKey);
 }
 
