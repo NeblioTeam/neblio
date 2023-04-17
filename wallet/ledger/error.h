@@ -46,5 +46,6 @@ namespace ledger {
 		const char *what() const noexcept override;
 	private:
 		ErrorCode errorCode;
+		std::string message;
 	};
 } // namespace ledger
