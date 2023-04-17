@@ -53,6 +53,7 @@ AddressBookPage::AddressBookPage(Mode modeIn, Tabs tabIn, QWidget *parent) :
     ui->signMessage->setIcon(QIcon());
     ui->verifyMessage->setIcon(QIcon());
     ui->verifyAddress->setIcon(QIcon());
+    ui->addressInfo->setIcon(QIcon());
     ui->deleteButton->setIcon(QIcon());
 #endif
 
@@ -79,18 +80,21 @@ AddressBookPage::AddressBookPage(Mode modeIn, Tabs tabIn, QWidget *parent) :
         ui->signMessage->setVisible(false);
         ui->verifyMessage->setVisible(true);
         ui->verifyAddress->setVisible(false);
+        ui->addressInfo->setVisible(false);
         break;
     case ReceivingTab:
         ui->deleteButton->setVisible(false);
         ui->signMessage->setVisible(true);
         ui->verifyMessage->setVisible(false);
         ui->verifyAddress->setVisible(true);
+        ui->addressInfo->setVisible(true);
         break;
     case LedgerTab:
         ui->deleteButton->setVisible(false);
         ui->signMessage->setVisible(false);
         ui->verifyMessage->setVisible(false);
         ui->verifyAddress->setVisible(true);
+        ui->addressInfo->setVisible(true);
         break;
     }
 
@@ -102,6 +106,7 @@ AddressBookPage::AddressBookPage(Mode modeIn, Tabs tabIn, QWidget *parent) :
     signMessageAction = new QAction(ui->signMessage->text(), this);
     verifyMessageAction = new QAction(ui->verifyMessage->text(), this);
     verifyAddressAction = new QAction(ui->verifyAddress->text(), this);
+    addressInfoAction = new QAction(ui->addressInfo->text(), this);
     deleteAction = new QAction(ui->deleteButton->text(), this);
 
     // Build context menu
@@ -125,9 +130,11 @@ AddressBookPage::AddressBookPage(Mode modeIn, Tabs tabIn, QWidget *parent) :
     case ReceivingTab:
         contextMenu->addAction(signMessageAction);
         contextMenu->addAction(verifyAddressAction);
+        contextMenu->addAction(addressInfoAction);
         break;
     case LedgerTab:
         contextMenu->addAction(verifyAddressAction);
+        contextMenu->addAction(addressInfoAction);
         break;
     }
 
@@ -140,6 +147,7 @@ AddressBookPage::AddressBookPage(Mode modeIn, Tabs tabIn, QWidget *parent) :
     connect(signMessageAction, SIGNAL(triggered()), this, SLOT(on_signMessage_clicked()));
     connect(verifyMessageAction, SIGNAL(triggered()), this, SLOT(on_verifyMessage_clicked()));
     connect(verifyAddressAction, SIGNAL(triggered()), this, SLOT(on_verifyAddress_clicked()));
+    connect(addressInfoAction, SIGNAL(triggered()), this, SLOT(on_addressInfo_clicked()));
 
     connect(ui->tableView, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
 
@@ -315,6 +323,53 @@ void AddressBookPage::on_newAddressButton_clicked()
     }
 }
 
+void AddressBookPage::on_addressInfo_clicked()
+{
+    QTableView *table = ui->tableView;
+    QModelIndexList indexes = table->selectionModel()->selectedRows(AddressTableModel::Address);
+    QString ledgerAddress;
+    QString ledgerLabel;
+    uint32_t ledgerAccount;
+    uint32_t ledgerIndex;
+
+    foreach (QModelIndex index, indexes)
+    {
+        ledgerAddress = index.data().toString();
+        ledgerLabel = index.sibling(index.row(), AddressTableModel::Label).data().toString();
+        ledgerAccount = index.sibling(index.row(), AddressTableModel::LedgerAccount).data().toInt();
+        ledgerIndex = index.sibling(index.row(), AddressTableModel::LedgerIndex).data().toInt();
+    }
+
+    CKeyID keyID;
+    CLedgerKey ledgerChangeKey;
+    if (
+        !CBitcoinAddress(ledgerAddress.toStdString()).GetKeyID(keyID) ||
+        !pwalletMain->GetOtherLedgerKey(keyID, ledgerChangeKey, false)
+    ) {
+        QMessageBox::critical(this, windowTitle(), tr("An error occured while getting the Ledger address info."), QMessageBox::Ok, QMessageBox::Ok);
+    }
+    auto changeAddress = CBitcoinAddress(CTxDestination(ledgerChangeKey.vchPubKey.GetID()));
+    auto changeAddressStr = QString::fromStdString(changeAddress.ToString());
+
+    QMessageBox msgBox(this);
+    msgBox.setIcon(QMessageBox::Icon::Information);
+    msgBox.setWindowTitle(tr("Ledger Address Info"));
+    msgBox.setText(
+        "<table>" +
+        tr("<tr><td>Label: </td><td>%1</td></tr>").arg(ledgerLabel) +
+        tr("<tr><td>Account Index: </td><td>%1</td></tr>").arg(ledgerAccount) +
+        tr("<tr><td>Address Index: </td><td>%1</td></tr>").arg(ledgerIndex) +
+        tr("<tr><td>Address: </td><td><tt>%1</tt></td></tr>").arg(ledgerAddress) +
+        tr("<tr><td>Change Address: </td><td><tt>%1</tt></td></tr>").arg(changeAddressStr) +
+        "</table>"
+    );
+    // hack to increase QMessageBox width
+    QSpacerItem *horizontalSpacer = new QSpacerItem(550, 0, QSizePolicy::Minimum, QSizePolicy::Expanding);
+    QGridLayout *layout = (QGridLayout*)msgBox.layout();
+    layout->addItem(horizontalSpacer, layout->rowCount(), 0, 1, layout->columnCount());
+    msgBox.exec();
+}
+
 void AddressBookPage::on_deleteButton_clicked()
 {
     QTableView *table = ui->tableView;
@@ -350,6 +405,8 @@ void AddressBookPage::selectionChanged()
             verifyMessageAction->setEnabled(true);
             ui->verifyAddress->setEnabled(false);
             verifyAddressAction->setEnabled(false);
+            ui->addressInfo->setEnabled(false);
+            addressInfoAction->setEnabled(false);
             break;
         case ReceivingTab:
             // Deleting receiving addresses, however, is not allowed
@@ -361,6 +418,8 @@ void AddressBookPage::selectionChanged()
             verifyMessageAction->setEnabled(false);
             ui->verifyAddress->setEnabled(isLedger);
             verifyAddressAction->setEnabled(isLedger);
+            ui->addressInfo->setEnabled(isLedger);
+            addressInfoAction->setEnabled(isLedger);
             break;
         case LedgerTab:
             ui->deleteButton->setEnabled(false);
@@ -371,6 +430,8 @@ void AddressBookPage::selectionChanged()
             verifyMessageAction->setEnabled(false);
             ui->verifyAddress->setEnabled(isLedger);
             verifyAddressAction->setEnabled(isLedger);
+            ui->addressInfo->setEnabled(isLedger);
+            addressInfoAction->setEnabled(isLedger);
             break;
         }
         ui->copyToClipboard->setEnabled(true);
@@ -384,6 +445,7 @@ void AddressBookPage::selectionChanged()
         ui->signMessage->setEnabled(false);
         ui->verifyMessage->setEnabled(false);
         ui->verifyAddress->setEnabled(false);
+        ui->addressInfo->setEnabled(false);
     }
 }
 

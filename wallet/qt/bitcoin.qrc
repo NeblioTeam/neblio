@@ -68,6 +68,7 @@
         <file alias="red-minus">res/icons/minus-96.png</file>
         <file alias="votes-icon">res/icons/true-false-96.png</file>
         <file alias="eye">res/icons/eye.png</file>
+        <file alias="info">res/icons/info.png</file>
     </qresource>
     <qresource prefix="/images">
         <file alias="about">res/images/about.png</file>
