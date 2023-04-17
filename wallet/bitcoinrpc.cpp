@@ -280,6 +280,7 @@ static const CRPCCommand vRPCCommands[] =
     { "getnewaddress",             &getnewaddress,             true,   false },
     { "addledgeraddress",          &addledgeraddress,          true,   false },
     { "verifyledgeraddress",       &verifyledgeraddress,       true,   false },
+    { "getledgeraccount",          &getledgeraccount,          true,   true  },
     { "udtoneblioaddress",         &udtoneblioaddress,         true,   false },
     { "getnewpubkey",              &getnewpubkey,              true,   false },
     { "getaccountaddress",         &getaccountaddress,         true,   false },
@@ -1421,6 +1422,12 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<int>(params[0]);
     if (strMethod == "addledgeraddress" && n > 1)
         ConvertTo<int>(params[1]);
+    if (strMethod == "verifyledgeraddress" && n > 0)
+        ConvertTo<int>(params[0]);
+    if (strMethod == "verifyledgeraddress" && n > 1)
+        ConvertTo<bool>(params[1]);
+    if (strMethod == "verifyledgeraddress" && n > 2)
+        ConvertTo<int>(params[2]);
     if (strMethod == "generatetoaddress" && n > 0)
         ConvertTo<int>(params[0]);
     if (strMethod == "generatetoaddress" && n > 2)

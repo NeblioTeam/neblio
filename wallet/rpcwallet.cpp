@@ -535,7 +535,7 @@ Value verifyledgeraddress(const Array& params, bool fHelp)
 
     auto addressIndex = params[2].get_int();
     if (!ledgerbridge::LedgerBridge::ValidateAddressIndex(addressIndex))
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid address index");    
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid address index");
 
     CBitcoinAddress expectedAddress(params[3].get_str());
     if (!expectedAddress.IsValid())
@@ -561,34 +561,45 @@ Value getledgeraccount(const Array& params, bool fHelp)
     auto addressOrAccount = params[0].get_str();
 
     CKeyID keyID;
-    CBitcoinAddress address(addressOrAccount);
-    if (address.IsValid()) {
-        keyID = address.GetKeyID();
+    CTxDestination address;
+    if (CBitcoinAddress(addressOrAccount).IsValid()) {
+        // address
+        if (!CBitcoinAddress(addressOrAccount).GetKeyID(keyID))
+            throw JSONRPCError(RPC_MISC_ERROR, "Invalid address");
+        address = CTxDestination(keyID);
     } else {
-        auto account = AccountFromValue(addressOrAccount);        
-        CTxDestination addressOut;
-        if (!pwalletMain->GetAddressBookEntryByLabel(account, addressOut))
+        // label
+        auto label = AccountFromValue(addressOrAccount);
+        if (!pwalletMain->GetAddressBookEntryByLabel(label, address))
             throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Account not found");
 
-        if (addressOut.type() != typeid(CKeyID))
-            throw JSONRPCError(RCP_MISC_ERROR, "Invalid account type");
+        if (address.type() != typeid(CKeyID))
+            throw JSONRPCError(RPC_MISC_ERROR, "Invalid account type");
 
-        keyID = *boost::get<CKeyID>(&addressOut);
+        keyID = *boost::get<CKeyID>(&address);
     }
 
     CLedgerKey ledgerPaymentKey;
-    if (!pwalletMain->GetLedgerKey(*boost::get<CKeyID>(&addressOut), ledgerPaymentKey))
-        throw JSONRPCError(RCP_MISC_ERROR, "Account is not a Ledger account");
+    if (!pwalletMain->GetLedgerKey(keyID, ledgerPaymentKey))
+        throw JSONRPCError(RPC_MISC_ERROR, "Account is not a Ledger account");
 
     CLedgerKey ledgerChangeKey;
-    pwalletMain->GetOtherLedgerKey(*boost::get<CKeyID>(&addressOut), ledgerChangeKey, false);
-    
-    Object entry;            
-    entry.push_back(Pair("label", account));
-    entry.push_back(Pair("accountindex", ledgerPaymentKey.accountIndex));
-    entry.push_back(Pair("addressindex", ledgerPaymentKey.addressIndex));
-    entry.push_back(Pair("address", CBitcoinAddress(ledgerPaymentKey.address).ToString()));
-    entry.push_back(Pair("changeaddress", CBitcoinAddress(ledgerChangeKey.address).ToString()));
+    if (!pwalletMain->GetOtherLedgerKey(keyID, ledgerChangeKey, false))
+        throw JSONRPCError(RPC_MISC_ERROR, "Corresponding Ledger change address not found");
+
+    if (!pwalletMain->HasAddressBookEntry(address))
+        throw JSONRPCError(RPC_MISC_ERROR, "Address not found in address book");
+
+    auto label = pwalletMain->mapAddressBook.get(address).get().name;
+    auto paymentAddress = CBitcoinAddress(CTxDestination(ledgerPaymentKey.vchPubKey.GetID()));
+    auto changeAddress = CBitcoinAddress(CTxDestination(ledgerChangeKey.vchPubKey.GetID()));
+
+    Object entry;
+    entry.push_back(Pair("label", label));
+    entry.push_back(Pair("accountindex", (int)ledgerPaymentKey.account));
+    entry.push_back(Pair("addressindex", (int)ledgerPaymentKey.index));
+    entry.push_back(Pair("address", paymentAddress.ToString()));
+    entry.push_back(Pair("changeaddress", changeAddress.ToString()));
 
     return entry;
 }
