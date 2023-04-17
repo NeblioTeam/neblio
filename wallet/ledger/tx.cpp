@@ -1,17 +1,16 @@
-#include "ledger/error.h"
 #include "ledger/tx.h"
+#include "ledger/error.h"
 #include "ledger/utils.h"
 
-namespace ledger
+namespace ledger {
+bytes SerializeTransaction(const Tx& tx)
 {
-bytes SerializeTransaction(const Tx& tx) {
     bytes serializedTransaction;
     AppendUint32(serializedTransaction, tx.version, true);
     AppendUint32(serializedTransaction, tx.time, true);
 
     AppendVector(serializedTransaction, CreateVarint(tx.inputs.size()));
-    for (auto input : tx.inputs)
-    {
+    for (auto input : tx.inputs) {
         AppendVector(serializedTransaction, input.prevout.hash);
         AppendUint32(serializedTransaction, input.prevout.index, true);
         AppendVector(serializedTransaction, CreateVarint(input.script.size()));
@@ -20,8 +19,7 @@ bytes SerializeTransaction(const Tx& tx) {
     }
 
     AppendVector(serializedTransaction, CreateVarint(tx.outputs.size()));
-    for (auto output : tx.outputs)
-    {
+    for (auto output : tx.outputs) {
         AppendUint64(serializedTransaction, output.amount, true);
         AppendVector(serializedTransaction, CreateVarint(output.script.size()));
         AppendVector(serializedTransaction, output.script);
@@ -125,44 +123,44 @@ Tx DeserializeTransaction(const bytes& transaction)
     tx.locktime = BytesToInt(Splice(transaction, offset, 4));
 
     return tx;
-    }
+}
 
-    TrustedInput DeserializeTrustedInput(const bytes &serializedTrustedInput)
-    {
-        TrustedInput trustedInput;
+TrustedInput DeserializeTrustedInput(const bytes& serializedTrustedInput)
+{
+    TrustedInput trustedInput;
 
-        AppendVector(trustedInput.serialized, serializedTrustedInput);
+    AppendVector(trustedInput.serialized, serializedTrustedInput);
 
-        auto offset = 0;
+    auto offset = 0;
 
-        auto trustedInputMagic = serializedTrustedInput[offset];
-        if (trustedInputMagic != 0x32)
-            throw LedgerException(ErrorCode::INVALID_TRUSTED_INPUT);
-        offset += 1;
+    auto trustedInputMagic = serializedTrustedInput[offset];
+    if (trustedInputMagic != 0x32)
+        throw LedgerException(ErrorCode::INVALID_TRUSTED_INPUT);
+    offset += 1;
 
-        auto zeroByte = serializedTrustedInput[offset];
-        if (zeroByte != 0x00)
-            throw LedgerException(ErrorCode::INVALID_TRUSTED_INPUT);
-        offset += 1;
+    auto zeroByte = serializedTrustedInput[offset];
+    if (zeroByte != 0x00)
+        throw LedgerException(ErrorCode::INVALID_TRUSTED_INPUT);
+    offset += 1;
 
-        trustedInput.random = BytesToInt(Splice(serializedTrustedInput, offset, 2));
-        offset += 2;
+    trustedInput.random = BytesToInt(Splice(serializedTrustedInput, offset, 2));
+    offset += 2;
 
-        trustedInput.prevTxId = Splice(serializedTrustedInput, offset, 32);
-        offset += 32;
+    trustedInput.prevTxId = Splice(serializedTrustedInput, offset, 32);
+    offset += 32;
 
-        trustedInput.outIndex = BytesToInt(Splice(serializedTrustedInput, offset, 4), true);
-        offset += 4;
+    trustedInput.outIndex = BytesToInt(Splice(serializedTrustedInput, offset, 4), true);
+    offset += 4;
 
-        trustedInput.amount = BytesToInt(Splice(serializedTrustedInput, offset, 8), true);
-        offset += 8;
+    trustedInput.amount = BytesToInt(Splice(serializedTrustedInput, offset, 8), true);
+    offset += 8;
 
-        trustedInput.hmac = Splice(serializedTrustedInput, offset, 8);
-        offset += 8;
+    trustedInput.hmac = Splice(serializedTrustedInput, offset, 8);
+    offset += 8;
 
-        if (offset != serializedTrustedInput.size())
-            throw LedgerException(ErrorCode::INVALID_TRUSTED_INPUT);
+    if (offset != serializedTrustedInput.size())
+        throw LedgerException(ErrorCode::INVALID_TRUSTED_INPUT);
 
-        return trustedInput;
-    }
+    return trustedInput;
+}
 } // namespace ledger

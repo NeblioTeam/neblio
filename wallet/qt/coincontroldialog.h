@@ -45,7 +45,7 @@ private:
     QAction*         copyTransactionOutputIndexAction;
     // QAction *lockAction;
     // QAction *unlockAction;
-    bool fLedgerTx;
+    bool    fLedgerTx;
     QString fromAccount;
 
     QString strPad(QString, int, QString);

@@ -490,9 +490,10 @@ Value getnewaddress(const Array& params, bool fHelp)
 Value addledgeraddress(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 3)
-        throw runtime_error("addledgeraddress <accountindex> <addressindex> <label>\n"
-                            "Imports a Ledger address into the wallet.  "
-                            "Path m/44'/146'/<accountindex>'/0/<addressindex> is used to derive the address.");
+        throw runtime_error(
+            "addledgeraddress <accountindex> <addressindex> <label>\n"
+            "Imports a Ledger address into the wallet.  "
+            "Path m/44'/146'/<accountindex>'/0/<addressindex> is used to derive the address.");
 
     auto accountIndex = params[0].get_int();
     if (!ledgerbridge::LedgerBridge::ValidateAccountIndex(accountIndex))
@@ -523,9 +524,11 @@ Value addledgeraddress(const Array& params, bool fHelp)
 Value verifyledgeraddress(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 4)
-        throw runtime_error("verifyledgeraddress <accountindex> <ischange> <addressindex> <expectedaddress>\n"
-                            "Verifies a Ledger address by exporting it from Ledger and comparing it to <expectedaddress>. "
-                            "Path m/44'/146'/<accountindex>'/0/<addressindex> is used to derive the address.");
+        throw runtime_error(
+            "verifyledgeraddress <accountindex> <ischange> <addressindex> <expectedaddress>\n"
+            "Verifies a Ledger address by exporting it from Ledger and comparing it to "
+            "<expectedaddress>. "
+            "Path m/44'/146'/<accountindex>'/0/<addressindex> is used to derive the address.");
 
     auto accountIndex = params[0].get_int();
     if (!ledgerbridge::LedgerBridge::ValidateAccountIndex(accountIndex))
@@ -542,12 +545,13 @@ Value verifyledgeraddress(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid expected address");
 
     ledgerbridge::LedgerBridge ledgerBridge;
-    auto pubKeyBytes = ledgerBridge.GetPublicKey(accountIndex, isChange, addressIndex, true);
+    auto    pubKeyBytes = ledgerBridge.GetPublicKey(accountIndex, isChange, addressIndex, true);
     CPubKey pubKey(pubKeyBytes);
-    auto address = CBitcoinAddress(pubKey.GetID()).ToString();
+    auto    address = CBitcoinAddress(pubKey.GetID()).ToString();
 
     if (address != expectedAddress.ToString())
-        throw JSONRPCError(RPC_MISC_ERROR, "Address received from Ledger doesn't match <expectedaddress>.");
+        throw JSONRPCError(RPC_MISC_ERROR,
+                           "Address received from Ledger doesn't match <expectedaddress>.");
 
     return address;
 }
@@ -560,7 +564,7 @@ Value getledgeraccount(const Array& params, bool fHelp)
 
     auto addressOrAccount = params[0].get_str();
 
-    CKeyID keyID;
+    CKeyID         keyID;
     CTxDestination address;
     if (CBitcoinAddress(addressOrAccount).IsValid()) {
         // address
@@ -590,9 +594,9 @@ Value getledgeraccount(const Array& params, bool fHelp)
     if (!pwalletMain->HasAddressBookEntry(address))
         throw JSONRPCError(RPC_MISC_ERROR, "Address not found in address book");
 
-    auto label = pwalletMain->mapAddressBook.get(address).get().name;
+    auto label          = pwalletMain->mapAddressBook.get(address).get().name;
     auto paymentAddress = CBitcoinAddress(CTxDestination(ledgerPaymentKey.vchPubKey.GetID()));
-    auto changeAddress = CBitcoinAddress(CTxDestination(ledgerChangeKey.vchPubKey.GetID()));
+    auto changeAddress  = CBitcoinAddress(CTxDestination(ledgerChangeKey.vchPubKey.GetID()));
 
     Object entry;
     entry.push_back(Pair("label", label));

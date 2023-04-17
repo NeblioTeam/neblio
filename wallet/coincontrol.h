@@ -15,7 +15,7 @@ public:
     void SetNull()
     {
         destChange = CNoDestination();
-        fLedgerTx = false;
+        fLedgerTx  = false;
         setSelected.clear();
     }
 

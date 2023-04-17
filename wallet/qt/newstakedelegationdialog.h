@@ -40,7 +40,7 @@ class NewStakeDelegationDialog : public QDialog
     QCheckBox*   useDelegatedCheckbox;
     QFrame*      paymentSeparator;
 
-    QPushButton*       coinControlButton;
+    QPushButton* coinControlButton;
 
     MessageBoxWithTimer* timedMessageBox;
     QPushButton*         timedMessageBox_yesButton;

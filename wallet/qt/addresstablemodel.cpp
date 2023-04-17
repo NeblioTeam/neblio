@@ -14,8 +14,8 @@
 #include <QColor>
 #include <QFont>
 
-const QString AddressTableModel::Send    = "S";
-const QString AddressTableModel::Receive = "R";
+const QString AddressTableModel::Send          = "S";
+const QString AddressTableModel::Receive       = "R";
 const QString AddressTableModel::ReceiveLedger = "RL"; // TODO DM this is accidentally matched by
 // proxyModel->setFilterFixedString(AddressTableModel::Receive);
 
@@ -28,9 +28,9 @@ struct AddressTableEntry
         ReceivingLedger
     };
 
-    Type    type;
-    QString label;
-    QString address;
+    Type     type;
+    QString  label;
+    QString  address;
     uint32_t ledgerAccount;
     uint32_t ledgerIndex;
 
@@ -55,13 +55,11 @@ struct AddressTableEntryLessThan
 
 AddressTableEntry::Type GetEntryType(isminetype fMine)
 {
-    if (fMine == isminetype::ISMINE_LEDGER)
-    {
+    if (fMine == isminetype::ISMINE_LEDGER) {
         return AddressTableEntry::ReceivingLedger;
     }
 
-    if (fMine)
-    {
+    if (fMine) {
         return AddressTableEntry::Receiving;
     }
 
@@ -76,7 +74,9 @@ public:
     QList<AddressTableEntry> cachedAddressTable;
     AddressTableModel*       parent;
 
-    AddressTablePriv(CWallet* walletIn, AddressTableModel* parentIn) : wallet(walletIn), parent(parentIn) {}
+    AddressTablePriv(CWallet* walletIn, AddressTableModel* parentIn) : wallet(walletIn), parent(parentIn)
+    {
+    }
 
     void refreshAddressTable()
     {
@@ -87,23 +87,18 @@ public:
                 const CBitcoinAddress&  address = item.first;
                 const std::string&      strName = item.second.name;
                 isminetype              fMine   = IsMine(*wallet, address.Get());
-                AddressTableEntry::Type type = GetEntryType(fMine);
+                AddressTableEntry::Type type    = GetEntryType(fMine);
 
-                CKeyID ledgerKedId;
+                CKeyID     ledgerKedId;
                 CLedgerKey ledgerKey;
-                if (type == AddressTableEntry::ReceivingLedger)
-                {
+                if (type == AddressTableEntry::ReceivingLedger) {
                     address.GetKeyID(ledgerKedId);
                     wallet->GetLedgerKey(ledgerKedId, ledgerKey);
                 }
 
-                cachedAddressTable.append(AddressTableEntry(
-                    type,
-                    QString::fromStdString(strName),
-                    QString::fromStdString(address.ToString()),
-                    ledgerKey.account,
-                    ledgerKey.index
-                ));
+                cachedAddressTable.append(AddressTableEntry(type, QString::fromStdString(strName),
+                                                            QString::fromStdString(address.ToString()),
+                                                            ledgerKey.account, ledgerKey.index));
             }
         }
         // qLowerBound() and qUpperBound() require our cachedAddressTable list to be sorted in asc order
@@ -118,24 +113,23 @@ public:
             cachedAddressTable.begin(), cachedAddressTable.end(), address, AddressTableEntryLessThan());
         QList<AddressTableEntry>::iterator upper = std::upper_bound(
             cachedAddressTable.begin(), cachedAddressTable.end(), address, AddressTableEntryLessThan());
-        int                     lowerIndex = (lower - cachedAddressTable.begin());
-        int                     upperIndex = (upper - cachedAddressTable.begin());
-        bool                    inModel    = (lower != upper);
+        int                     lowerIndex   = (lower - cachedAddressTable.begin());
+        int                     upperIndex   = (upper - cachedAddressTable.begin());
+        bool                    inModel      = (lower != upper);
         AddressTableEntry::Type newEntryType = GetEntryType(isMine);
 
         switch (status) {
         case CT_NEW:
             if (inModel) {
                 NLog.write(b_sev::warn,
-                          "Warning: AddressTablePriv::updateEntry: Got CT_NEW, but entry is "
-                          "already in model");
+                           "Warning: AddressTablePriv::updateEntry: Got CT_NEW, but entry is "
+                           "already in model");
                 break;
             }
             {
-                CKeyID ledgerKeyId;
+                CKeyID     ledgerKeyId;
                 CLedgerKey ledgerKey;
-                if (newEntryType == AddressTableEntry::ReceivingLedger)
-                {
+                if (newEntryType == AddressTableEntry::ReceivingLedger) {
                     CBitcoinAddress(address.toStdString()).GetKeyID(ledgerKeyId);
                     wallet->GetLedgerKey(ledgerKeyId, ledgerKey);
                 }
@@ -150,8 +144,8 @@ public:
         case CT_UPDATED:
             if (!inModel) {
                 NLog.write(b_sev::warn,
-                          "Warning: AddressTablePriv::updateEntry: Got CT_UPDATED, but entry "
-                          "is not in model");
+                           "Warning: AddressTablePriv::updateEntry: Got CT_UPDATED, but entry "
+                           "is not in model");
                 break;
             }
             lower->type  = newEntryType;
@@ -161,8 +155,8 @@ public:
         case CT_DELETED:
             if (!inModel) {
                 NLog.write(b_sev::warn,
-                          "Warning: AddressTablePriv::updateEntry: Got CT_DELETED, but entry "
-                          "is not in model");
+                           "Warning: AddressTablePriv::updateEntry: Got CT_DELETED, but entry "
+                           "is not in model");
                 break;
             }
             parent->beginRemoveRows(QModelIndex(), lowerIndex, upperIndex - 1);
@@ -187,7 +181,8 @@ public:
 AddressTableModel::AddressTableModel(CWallet* walletIn, WalletModel* parent)
     : QAbstractTableModel(parent), walletModel(parent), wallet(walletIn), priv(0)
 {
-    columns << tr("Label") << tr("Address") << tr("Is Ledger") << tr("Ledger Account") << tr("Ledger Index") << tr("Ledger Path");
+    columns << tr("Label") << tr("Address") << tr("Is Ledger") << tr("Ledger Account")
+            << tr("Ledger Index") << tr("Ledger Path");
     priv = new AddressTablePriv(walletIn, this);
     priv->refreshAddressTable();
 }
@@ -230,13 +225,12 @@ QVariant AddressTableModel::data(const QModelIndex& index, int role) const
             return isLedger ? QString::number(rec->ledgerAccount) : "";
         case LedgerIndex:
             return isLedger ? QString::number(rec->ledgerIndex) : "";
-        case LedgerPath:
-            {
-                // IsLedger, LedgerAccount and LedgerIndex are hidden, we display the info here
-                // (however, they still need to be above due to EditAddressDialog data mapping)
-                std::string path = ledger::Bip32Path(rec->ledgerAccount, false, rec->ledgerIndex).ToString();
-                return isLedger ? QString::fromStdString(path) : "-";
-            }
+        case LedgerPath: {
+            // IsLedger, LedgerAccount and LedgerIndex are hidden, we display the info here
+            // (however, they still need to be above due to EditAddressDialog data mapping)
+            std::string path = ledger::Bip32Path(rec->ledgerAccount, false, rec->ledgerIndex).ToString();
+            return isLedger ? QString::fromStdString(path) : "-";
+        }
         }
     } else if (role == Qt::FontRole) {
         if (index.column() == Address) {
@@ -308,7 +302,8 @@ bool AddressTableModel::setData(const QModelIndex& index, const QVariant& value,
                 editStatus = NO_CHANGES;
                 return false;
             }
-            if (!checkLabelAvailability(value.toString(), rec->type == AddressTableEntry::ReceivingLedger))
+            if (!checkLabelAvailability(value.toString(),
+                                        rec->type == AddressTableEntry::ReceivingLedger))
                 return false;
             wallet->SetAddressBookEntry(CBitcoinAddress(rec->address.toStdString()).Get(),
                                         value.toString().toStdString());
@@ -369,8 +364,7 @@ Qt::ItemFlags AddressTableModel::flags(const QModelIndex& index) const
     Qt::ItemFlags retval = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
     // Can edit label and address for sending addresses,
     // and only label for receiving addresses.
-    switch (rec->type)
-    {
+    switch (rec->type) {
     case AddressTableEntry::Sending:
         if (index.column() == Label || index.column() == Address)
             retval |= Qt::ItemIsEditable;
@@ -442,15 +436,15 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
         }
         strAddress = CBitcoinAddress(newKey.GetID()).ToString();
     } else if (type == ReceiveLedger) {
-        bool accountOk = true;
-        uint32_t account = ledgerAccount.toUInt(&accountOk);
+        bool     accountOk = true;
+        uint32_t account   = ledgerAccount.toUInt(&accountOk);
         if (!accountOk || !ledgerbridge::LedgerBridge::ValidateAccountIndex(account)) {
             editStatus = INVALID_LEDGER_ACCOUNT;
             return QString();
         }
 
-        bool indexOk = true;
-        uint32_t index = ledgerIndex.toUInt(&indexOk);
+        bool     indexOk = true;
+        uint32_t index   = ledgerIndex.toUInt(&indexOk);
         if (!indexOk || !ledgerbridge::LedgerBridge::ValidateAddressIndex(index)) {
             editStatus = INVALID_LEDGER_INDEX;
             return QString();
@@ -459,7 +453,7 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
         try {
             strAddress = wallet->ImportLedgerKey(account, index);
         } catch (const ledger::LedgerException& e) {
-            editStatus = LEDGER_ERROR;
+            editStatus  = LEDGER_ERROR;
             ledgerError = e.GetErrorCode();
             return QString();
         }
@@ -482,7 +476,8 @@ bool AddressTableModel::removeRows(int row, int count, const QModelIndex& parent
 {
     Q_UNUSED(parent);
     AddressTableEntry* rec = priv->index(row);
-    if (count != 1 || !rec || rec->type == AddressTableEntry::Receiving || rec->type == AddressTableEntry::ReceivingLedger) {
+    if (count != 1 || !rec || rec->type == AddressTableEntry::Receiving ||
+        rec->type == AddressTableEntry::ReceivingLedger) {
         // Can only remove one row at a time, and cannot remove rows not in model.
         // Also refuse to remove receiving addresses.
         return false;

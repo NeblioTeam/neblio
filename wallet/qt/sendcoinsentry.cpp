@@ -10,7 +10,8 @@
 #include <QApplication>
 #include <QClipboard>
 
-SendCoinsEntry::SendCoinsEntry(QWidget* parent, bool enableNTP1Tokens) : QFrame(parent), ui(new Ui::SendCoinsEntry), model(0)
+SendCoinsEntry::SendCoinsEntry(QWidget* parent, bool enableNTP1Tokens)
+    : QFrame(parent), ui(new Ui::SendCoinsEntry), model(0)
 {
     ui->setupUi(this, enableNTP1Tokens);
 
@@ -127,9 +128,7 @@ SendCoinsRecipient SendCoinsEntry::getValue()
     return rv;
 }
 
-bool SendCoinsEntry::isNTP1TokenSelected() const {
-    return ui->payAmount->isNTP1TokenSelected();
-}
+bool SendCoinsEntry::isNTP1TokenSelected() const { return ui->payAmount->isNTP1TokenSelected(); }
 
 QWidget* SendCoinsEntry::setupTabChain(QWidget* prev)
 {

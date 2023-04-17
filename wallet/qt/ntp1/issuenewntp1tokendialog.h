@@ -72,7 +72,7 @@ class IssueNewNTP1TokenDialog : public QDialog
 
     NTP1TokenSymbolValidator* tokenSymbolValidator;
 
-    QPushButton*       coinControlButton;
+    QPushButton* coinControlButton;
 
     WalletModel* walletModel = nullptr;
 

@@ -107,7 +107,8 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
     } else {
         bool fAllFromMe = true;
         for (const CTxIn& txin : wtx.vin) {
-            fAllFromMe = fAllFromMe && IsMineCheck(wallet->IsMine(txin), isminetype::ISMINE_SPENDABLE_AVAILABLE);
+            fAllFromMe =
+                fAllFromMe && IsMineCheck(wallet->IsMine(txin), isminetype::ISMINE_SPENDABLE_AVAILABLE);
         }
 
         bool fAllToMe = true;
@@ -116,7 +117,8 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
             if (NTP1Transaction::IsTxOutputOpRet(&txout, nullptr)) {
                 continue;
             }
-            fAllToMe = fAllToMe && IsMineCheck(wallet->IsMine(txout), isminetype::ISMINE_SPENDABLE_AVAILABLE);
+            fAllToMe =
+                fAllToMe && IsMineCheck(wallet->IsMine(txout), isminetype::ISMINE_SPENDABLE_AVAILABLE);
         }
 
         if (fAllFromMe && fAllToMe) {

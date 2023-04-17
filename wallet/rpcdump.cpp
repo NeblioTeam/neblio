@@ -420,7 +420,8 @@ bool _AddKeyToLocalWallet(const CKey& Key, const std::string& strLabel, int64_t 
     return true;
 }
 
-bool _AddLedgerKeyToLocalWallet(const CLedgerKey& ledgerKey, const std::string& strLabel, bool addInAddressBook)
+bool _AddLedgerKeyToLocalWallet(const CLedgerKey& ledgerKey, const std::string& strLabel,
+                                bool addInAddressBook)
 {
     CKeyID keyid = ledgerKey.vchPubKey.GetID();
     NLog.write(b_sev::info, "Importing ledger address {}...", CBitcoinAddress(keyid).ToString());
@@ -511,7 +512,7 @@ std::pair<long, long> ImportBackupWallet(const std::string& Src, std::string& Pa
     std::set<CKeyID> ledgerKeyIDsSet;
     backupWallet.GetLedgerKeys(ledgerKeyIDsSet);
 
-    allKeyIDsSet.insert(ledgerKeyIDsSet.begin(),ledgerKeyIDsSet.end());
+    allKeyIDsSet.insert(ledgerKeyIDsSet.begin(), ledgerKeyIDsSet.end());
 
     // deque to simply elements access
     const std::deque<CKeyID> allKeyIDs(allKeyIDsSet.begin(), allKeyIDsSet.end());
@@ -526,24 +527,24 @@ std::pair<long, long> ImportBackupWallet(const std::string& Src, std::string& Pa
     for (long i = 0; i < static_cast<long>(allKeyIDs.size()); i++) {
         AddressBookIt it                    = addrBook.find(allKeyIDs[i]);
         bool          foundKeyInAddressBook = (it != addrBook.end());
-        
-        CKey key;        
-        CLedgerKey ledgerKey;        
+
+        CKey       key;
+        CLedgerKey ledgerKey;
         if (backupWallet.GetKey(allKeyIDs[i], key)) {
             // add the key, whether to the address book or simply to reserve
             if (foundKeyInAddressBook) {
                 // import from address book
                 bool addSucceeded = _AddKeyToLocalWallet(
                     key, it->second.name,
-                    backupWallet.mapKeyMetadata.at(boost::get<CKeyID>(it->first)).nCreateTime, earliestTime,
-                    true);
+                    backupWallet.mapKeyMetadata.at(boost::get<CKeyID>(it->first)).nCreateTime,
+                    earliestTime, true);
                 if (addSucceeded)
                     succeessfullyAddedOutOfTotal.first++;
             } else {
                 // import reserve keys
-                bool addSucceeded =
-                    _AddKeyToLocalWallet(key, "", backupWallet.mapKeyMetadata.at(allKeyIDs[i]).nCreateTime,
-                                        earliestTime, importReserveToAddressBook);
+                bool addSucceeded = _AddKeyToLocalWallet(
+                    key, "", backupWallet.mapKeyMetadata.at(allKeyIDs[i]).nCreateTime, earliestTime,
+                    importReserveToAddressBook);
                 if (addSucceeded)
                     succeessfullyAddedOutOfTotal.first++;
             }
@@ -553,7 +554,8 @@ std::pair<long, long> ImportBackupWallet(const std::string& Src, std::string& Pa
                 if (addSucceeded)
                     succeessfullyAddedOutOfTotal.first++;
             } else {
-                bool addSucceeded = _AddLedgerKeyToLocalWallet(ledgerKey, "", importReserveToAddressBook);
+                bool addSucceeded =
+                    _AddLedgerKeyToLocalWallet(ledgerKey, "", importReserveToAddressBook);
                 if (addSucceeded)
                     succeessfullyAddedOutOfTotal.first++;
             }
@@ -606,11 +608,11 @@ std::string GetCurrentWalletHash()
 {
     std::set<CKeyID> allKeyIDsSet;
     pwalletMain->GetKeys(allKeyIDsSet);
-    
+
     std::set<CKeyID> ledgerKeyIDsSet;
     pwalletMain->GetLedgerKeys(ledgerKeyIDsSet);
 
-    allKeyIDsSet.insert(ledgerKeyIDsSet.begin(),ledgerKeyIDsSet.end());
+    allKeyIDsSet.insert(ledgerKeyIDsSet.begin(), ledgerKeyIDsSet.end());
 
     // deque to simply elements access
     const std::deque<CKeyID> allKeyIDs(allKeyIDsSet.begin(), allKeyIDsSet.end());
@@ -619,8 +621,8 @@ std::string GetCurrentWalletHash()
     std::string finalStringToHash;
     for (long i = 0; i < static_cast<long>(allKeyIDs.size()); i++) {
         // retrieve key using key ID
-        CKey key;
-        CLedgerKey ledgerKey;      
+        CKey       key;
+        CLedgerKey ledgerKey;
         if (pwalletMain->GetKey(allKeyIDs[i], key)) {
             finalStringToHash += key.GetPubKey().GetHash().ToString();
         } else if (pwalletMain->GetLedgerKey(allKeyIDs[i], ledgerKey)) {

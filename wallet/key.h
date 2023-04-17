@@ -84,7 +84,7 @@ public:
 
     IMPLEMENT_SERIALIZE(READWRITE(vchPubKey);)
 
-    void SetRaw(std::vector<unsigned char> rawKey) {vchPubKey = rawKey;}
+    void SetRaw(std::vector<unsigned char> rawKey) { vchPubKey = rawKey; }
 
     CKeyID GetID() const { return CKeyID(Hash160(vchPubKey)); }
 
@@ -182,18 +182,21 @@ bool ECC_InitSanityCheck(void);
 class CLedgerKey
 {
 public:
-    CPubKey vchPubKey;
-    CKeyID accountPubKeyID;
+    CPubKey  vchPubKey;
+    CKeyID   accountPubKeyID;
     uint32_t account;
-    bool isChange;
+    bool     isChange;
     uint32_t index;
 
     CLedgerKey() {}
 
-    CLedgerKey(const CPubKey& vchPubKeyIn, const CKeyID& accountPubKeyIDIn, uint32_t accountIn, bool isChangeIn, uint32_t indexIn) :
-        vchPubKey(vchPubKeyIn), accountPubKeyID(accountPubKeyIDIn), account(accountIn), isChange(isChangeIn), index(indexIn) {};
+    CLedgerKey(const CPubKey& vchPubKeyIn, const CKeyID& accountPubKeyIDIn, uint32_t accountIn,
+               bool isChangeIn, uint32_t indexIn)
+        : vchPubKey(vchPubKeyIn), accountPubKeyID(accountPubKeyIDIn), account(accountIn),
+          isChange(isChangeIn), index(indexIn){};
 
-    IMPLEMENT_SERIALIZE(READWRITE(vchPubKey); READWRITE(accountPubKeyID); READWRITE(account); READWRITE(isChange); READWRITE(index);)
+    IMPLEMENT_SERIALIZE(READWRITE(vchPubKey); READWRITE(accountPubKeyID); READWRITE(account);
+                        READWRITE(isChange); READWRITE(index);)
 };
 
 #endif

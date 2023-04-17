@@ -1,9 +1,9 @@
 #ifndef LEDGERBRIDGE_H
 
 #include "ledger/bip32.h"
-#include "ledger/tx.h"
 #include "ledger/bytes.h"
 #include "ledger/ledger.h"
+#include "ledger/tx.h"
 #include "ledger/utils.h"
 
 #include "itxdb.h"
@@ -11,39 +11,40 @@
 
 #include <vector>
 
-namespace ledgerbridge
+namespace ledgerbridge {
+struct LedgerBridgeUtxo
 {
-    struct LedgerBridgeUtxo
+    CTransaction transaction;
+    uint32_t     outputIndex;
+    CScript      outputPubKey;
+};
+
+class LedgerBridge
+{
+public:
+    static bool ValidateAccountIndex(int accountIndex)
     {
-        CTransaction transaction;
-        uint32_t outputIndex;
-        CScript outputPubKey;
-    };
+        return 0 <= accountIndex && accountIndex <= ledger::MAX_RECOMMENDED_ACCOUNT;
+    }
 
-    class LedgerBridge
+    static bool ValidateAddressIndex(int addressIndex)
     {
-        public:
-            static bool ValidateAccountIndex(int accountIndex)
-            {
-                return 0 <= accountIndex && accountIndex <= ledger::MAX_RECOMMENDED_ACCOUNT;
-            }
+        return 0 <= addressIndex && addressIndex <= ledger::MAX_RECOMMENDED_INDEX;
+    }
 
-            static bool ValidateAddressIndex(int addressIndex)
-            {
-                return 0 <= addressIndex && addressIndex <= ledger::MAX_RECOMMENDED_INDEX;
-            }
+    LedgerBridge();
+    ~LedgerBridge();
 
-            LedgerBridge();
-            ~LedgerBridge();
+    ledger::bytes GetPublicKey(ledger::Ledger& ledger, const ledger::Bip32Path path, bool display);
+    ledger::bytes GetPublicKey(const ledger::Bip32Path path, bool display);
+    ledger::bytes GetPublicKey(int account, bool isChange, int index, bool display);
+    ledger::bytes GetAccountPublicKey(int account, bool display);
+    void          SignTransaction(const ITxDB& txdb, const CWallet& wallet, CWalletTx& wtxNew,
+                                  const std::vector<LedgerBridgeUtxo>& utxos, bool hasChange);
 
-            ledger::bytes GetPublicKey(ledger::Ledger& ledger, const ledger::Bip32Path path, bool display);
-            ledger::bytes GetPublicKey(const ledger::Bip32Path path, bool display);
-            ledger::bytes GetPublicKey(int account, bool isChange, int index, bool display);
-            ledger::bytes GetAccountPublicKey(int account, bool display);
-            void SignTransaction(const ITxDB& txdb, const CWallet& wallet, CWalletTx &wtxNew, const std::vector<LedgerBridgeUtxo> &utxos, bool hasChange);
-        private:
-            ledger::Tx ToLedgerTx(const CTransaction& tx);
-    };
-}
+private:
+    ledger::Tx ToLedgerTx(const CTransaction& tx);
+};
+} // namespace ledgerbridge
 
 #endif // LEDGERBRIDGE_H

@@ -34,7 +34,7 @@ CoinControlDialog::CoinControlDialog(QWidget* parent, bool fLedgerTxIn, QString 
 {
     ui->setupUi(this);
 
-    fLedgerTx = fLedgerTxIn;
+    fLedgerTx   = fLedgerTxIn;
     fromAccount = fromAccountIn;
     if (coinControl->fLedgerTx != fLedgerTx) {
         // the ledger-only flag has changed, reset the coin control global state
@@ -726,7 +726,8 @@ void CoinControlDialog::updateView()
             // ledger path
             CLedgerKey ledgerKey;
             if (model->getWallet()->GetLedgerKey(boost::get<CKeyID>(walletAddress), ledgerKey)) {
-                std::string path = ledger::Bip32Path(ledgerKey.account, false, ledgerKey.index).ToString();
+                std::string path =
+                    ledger::Bip32Path(ledgerKey.account, false, ledgerKey.index).ToString();
                 itemWalletAddress->setText(COLUMN_LEDGER_PATH, QString::fromStdString(path));
             } else {
                 itemWalletAddress->setText(COLUMN_LEDGER_PATH, "-");

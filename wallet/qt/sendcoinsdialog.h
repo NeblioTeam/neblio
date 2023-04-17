@@ -1,16 +1,16 @@
 #ifndef SENDCOINSDIALOG_H
 #define SENDCOINSDIALOG_H
 
-#include <boost/shared_ptr.hpp>
 #include <QDialog>
 #include <QList>
 #include <QObject>
 #include <QSharedPointer>
 #include <QString>
+#include <boost/shared_ptr.hpp>
 
 #include "coincontroldialog.h"
-#include "ntp1/ntp1wallet.h"
 #include "ntp1/ntp1transaction.h"
+#include "ntp1/ntp1wallet.h"
 #include "walletmodel.h"
 
 namespace Ui {
@@ -25,7 +25,7 @@ class QUrl;
 QT_END_NAMESPACE
 
 /* Object for signing a transaction on a Ledger device in a separate thread.
-*/
+ */
 class LedgerSignTxWorker : public QObject
 {
     Q_OBJECT
@@ -33,16 +33,10 @@ class LedgerSignTxWorker : public QObject
 public slots:
     // we use the shared pointer argument to ensure that workerPtr will be deleted after doing the
     // retrieval
-    void signTx(
-        WalletModel*                       model,
-        QList<SendCoinsRecipient>          recipients,
-        boost::shared_ptr<NTP1Wallet>      ntp1wallet,
-        const RawNTP1MetadataBeforeSend&   ntp1metadata,
-        bool                               fSpendDelegated,
-        const CCoinControl*                coinControl,
-        const std::string&                 strFromAccount,
-        QSharedPointer<LedgerSignTxWorker> workerPtr
-    );
+    void signTx(WalletModel* model, QList<SendCoinsRecipient> recipients,
+                boost::shared_ptr<NTP1Wallet> ntp1wallet, const RawNTP1MetadataBeforeSend& ntp1metadata,
+                bool fSpendDelegated, const CCoinControl* coinControl, const std::string& strFromAccount,
+                QSharedPointer<LedgerSignTxWorker> workerPtr);
 
 signals:
     void resultReady(WalletModel::SendCoinsReturn);

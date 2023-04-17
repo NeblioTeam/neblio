@@ -26,17 +26,14 @@
 
 #include "ledger_ui/ledgermessagebox.h"
 
-void LedgerSignTxWorker::signTx(
-    WalletModel*                       model,
-    QList<SendCoinsRecipient>          recipients,
-    boost::shared_ptr<NTP1Wallet>      ntp1wallet,
-    const RawNTP1MetadataBeforeSend&   ntp1metadata,
-    bool                               fSpendDelegated,
-    const CCoinControl*                coinControl,
-    const std::string&                 strFromAccount,
-    QSharedPointer<LedgerSignTxWorker> workerPtr
-) {
-    auto sendStatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata, fSpendDelegated, coinControl, strFromAccount, true);
+void LedgerSignTxWorker::signTx(WalletModel* model, QList<SendCoinsRecipient> recipients,
+                                boost::shared_ptr<NTP1Wallet>    ntp1wallet,
+                                const RawNTP1MetadataBeforeSend& ntp1metadata, bool fSpendDelegated,
+                                const CCoinControl* coinControl, const std::string& strFromAccount,
+                                QSharedPointer<LedgerSignTxWorker> workerPtr)
+{
+    auto sendStatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata, fSpendDelegated,
+                                       coinControl, strFromAccount, true);
 
     emit resultReady(sendStatus);
     workerPtr.reset();
@@ -294,7 +291,6 @@ void SendCoinsDialog::on_sendButton_clicked()
         return;
     }
 
-
     CCoinControl* coinControl = nullptr;
     if (model->getOptionsModel() && model->getOptionsModel()->getCoinControlFeatures())
         coinControl = CoinControlDialog::coinControl;
@@ -311,14 +307,19 @@ void SendCoinsDialog::on_sendButton_clicked()
         strFromAccount = ui->ledgerPayFromNameEdit->text().toStdString();
 
     if (fLedgerTx) {
-            QSharedPointer<LedgerSignTxWorker> worker = QSharedPointer<LedgerSignTxWorker>::create();
-            ledger_ui::LedgerMessageBox msgBox(this, worker);
-            connect(worker.data(), SIGNAL(resultReady(WalletModel::SendCoinsReturn)), this, SLOT(setSendStatus(WalletModel::SendCoinsReturn)));
-            connect(worker.data(), SIGNAL(resultReady(WalletModel::SendCoinsReturn)), &msgBox, SLOT(quit()));
-            QTimer::singleShot(0, worker.data(), [&]() { worker->signTx(model, recipients, ntp1wallet, ntp1metadata, fSpendDelegatedOutputs, coinControl, strFromAccount, worker); });
-            msgBox.exec();
+        QSharedPointer<LedgerSignTxWorker> worker = QSharedPointer<LedgerSignTxWorker>::create();
+        ledger_ui::LedgerMessageBox        msgBox(this, worker);
+        connect(worker.data(), SIGNAL(resultReady(WalletModel::SendCoinsReturn)), this,
+                SLOT(setSendStatus(WalletModel::SendCoinsReturn)));
+        connect(worker.data(), SIGNAL(resultReady(WalletModel::SendCoinsReturn)), &msgBox, SLOT(quit()));
+        QTimer::singleShot(0, worker.data(), [&]() {
+            worker->signTx(model, recipients, ntp1wallet, ntp1metadata, fSpendDelegatedOutputs,
+                           coinControl, strFromAccount, worker);
+        });
+        msgBox.exec();
     } else {
-        sendStatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata, fSpendDelegatedOutputs, coinControl, strFromAccount, fLedgerTx);
+        sendStatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata, fSpendDelegatedOutputs,
+                                      coinControl, strFromAccount, fLedgerTx);
     }
 
     switch (sendStatus.status) {
@@ -469,8 +470,8 @@ SendCoinsEntry* SendCoinsDialog::addEntry()
     // metadata can be fixed if more recipients are added, so remove red color from the button
     ui->editMetadataButton->setStyleSheet("");
 
-    bool enableNTP1Tokens = !ui->ledgerCheckBox->isChecked();
-    SendCoinsEntry* entry = new SendCoinsEntry(this, enableNTP1Tokens);
+    bool            enableNTP1Tokens = !ui->ledgerCheckBox->isChecked();
+    SendCoinsEntry* entry            = new SendCoinsEntry(this, enableNTP1Tokens);
     entry->setModel(model);
     ui->entries->addWidget(entry);
     connect(entry, SIGNAL(removeEntry(SendCoinsEntry*)), this, SLOT(removeEntry(SendCoinsEntry*)));
@@ -672,7 +673,7 @@ void SendCoinsDialog::coinControlFeatureChanged(bool checked)
 // Coin Control: button inputs -> show actual coin control dialog
 void SendCoinsDialog::coinControlButtonClicked()
 {
-    bool fLedgerTx = false;
+    bool    fLedgerTx = false;
     QString fromAccount;
     if (ui->ledgerCheckBox->isChecked()) {
         if (ui->ledgerPayFromNameEdit->text().isEmpty()) {
@@ -682,7 +683,7 @@ void SendCoinsDialog::coinControlButtonClicked()
             ui->ledgerPayFromNameEdit->setStyleSheet(STYLE_INVALID);
             return;
         }
-        fLedgerTx = true;
+        fLedgerTx   = true;
         fromAccount = ui->ledgerPayFromNameEdit->text();
     }
     CoinControlDialog dlg(this, fLedgerTx, fromAccount);

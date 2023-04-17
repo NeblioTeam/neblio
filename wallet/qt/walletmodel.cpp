@@ -198,7 +198,7 @@ void WalletModel::updateAddressBook(const QString& address, const QString& label
                                     const QString& purpose, int status)
 {
     if (addressTableModel)
-        addressTableModel->updateEntry(address, label, (isminetype) isMine, purpose, status);
+        addressTableModel->updateEntry(address, label, (isminetype)isMine, purpose, status);
 }
 
 bool WalletModel::validateAddress(const QString& address)
@@ -218,8 +218,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
                                                     const RawNTP1MetadataBeforeSend& ntp1metadata,
                                                     bool                             fSpendDelegated,
                                                     const CCoinControl*              coinControl,
-                                                    const std::string&               strFromAccount,
-                                                    bool                             fLedgerTx)
+                                                    const std::string& strFromAccount, bool fLedgerTx)
 {
     qint64  total = 0;
     QString hex;
@@ -315,9 +314,9 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
             }
         }
 
-        CWalletTx   wtx;
+        CWalletTx wtx;
         wtx.strFromAccount = strFromAccount;
-        wtx.fLedgerTx = fLedgerTx;
+        wtx.fLedgerTx      = fLedgerTx;
 
         CReserveKey keyChange(wallet);
         int64_t     nFeeRequired = 0;

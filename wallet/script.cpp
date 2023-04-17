@@ -1617,11 +1617,9 @@ public:
     isminetype operator()(const CNoDestination& /*dest*/) const { return isminetype::ISMINE_NO; }
     isminetype operator()(const CKeyID& keyID) const
     {
-        return keystore->HaveKey(keyID)
-            ? isminetype::ISMINE_SPENDABLE
-            : keystore->HaveLedgerKey(keyID)
-                ? isminetype::ISMINE_LEDGER 
-                : isminetype::ISMINE_NO;
+        return keystore->HaveKey(keyID)         ? isminetype::ISMINE_SPENDABLE
+               : keystore->HaveLedgerKey(keyID) ? isminetype::ISMINE_LEDGER
+                                                : isminetype::ISMINE_NO;
     }
     isminetype operator()(const CScriptID& scriptID) const
     {

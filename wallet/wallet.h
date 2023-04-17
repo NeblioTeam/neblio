@@ -51,7 +51,7 @@ enum WalletFeature
 enum LabelAvailability
 {
     AVAILABLE,
-    USED_BY_LEDGER, /**< Using this label would break Ledger's unique label requirement */
+    USED_BY_LEDGER,        /**< Using this label would break Ledger's unique label requirement */
     NOT_USABLE_FOR_LEDGER, /**< Ledger address requires a fresh, unique label */
 };
 
@@ -202,8 +202,8 @@ public:
                                   bool fIncludeDelegated = false) const;
     void AvailableCoins(const ITxDB& txdb, std::vector<COutput>& vCoins, bool fOnlyConfirmed = true,
                         bool fIncludeColdStaking = false, bool fIncludeDelegated = true,
-                        const CCoinControl* coinControl = nullptr, const std::string& strFromAccount = "",
-                        bool fIncludeLedgerCoins = false) const;
+                        const CCoinControl* coinControl   = nullptr,
+                        const std::string& strFromAccount = "", bool fIncludeLedgerCoins = false) const;
 
     // Get available p2cs utxo
     bool GetAvailableP2CSCoins(const ITxDB& txdb, std::vector<COutput>& vCoins) const;
@@ -345,7 +345,8 @@ public:
     DBErrors LoadWallet(bool& fFirstRunRet);
 
     bool SetAddressBookEntry(const CTxDestination& address, const std::string& strName,
-                             const std::string& strPurpose = AddressBook::AddressBookPurpose::UNKNOWN, bool fLedgerAddress = false);
+                             const std::string& strPurpose = AddressBook::AddressBookPurpose::UNKNOWN,
+                             bool               fLedgerAddress = false);
 
     bool DelAddressBookName(const CTxDestination& address);
 
@@ -438,11 +439,11 @@ public:
     CBitcoinAddress getNewStakingAddress(const std::string& label);
     CAmount         GetStakingBalance(const ITxDB& txdb, bool fIncludeColdStaking) const;
 
-    bool IsLedgerAddress(const CTxDestination& address) const;
-    bool IsLabelUsedByLedger(const std::string& label);
-    bool IsLabelUsableForLedger(const std::string& label);
+    bool              IsLedgerAddress(const CTxDestination& address) const;
+    bool              IsLabelUsedByLedger(const std::string& label);
+    bool              IsLabelUsableForLedger(const std::string& label);
     LabelAvailability CheckLabelAvailability(const std::string& label, bool isLedgerAddress);
-    std::string ImportLedgerKey(int accountIndex, int addressIndex);
+    std::string       ImportLedgerKey(int accountIndex, int addressIndex);
 };
 
 /** A key allocated from the key pool. */

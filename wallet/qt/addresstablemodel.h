@@ -1,10 +1,10 @@
 #ifndef ADDRESSTABLEMODEL_H
 #define ADDRESSTABLEMODEL_H
 
-#include <QAbstractTableModel>
-#include <QStringList>
 #include "ledger/error.h"
 #include "wallet_ismine.h"
+#include <QAbstractTableModel>
+#include <QStringList>
 
 class AddressTablePriv;
 class CWallet;
@@ -22,12 +22,12 @@ public:
 
     enum ColumnIndex
     {
-        Label   = 0, /**< User specified label */
-        Address = 1,  /**< Bitcoin address */
-        IsLedger = 2,
+        Label         = 0, /**< User specified label */
+        Address       = 1, /**< Bitcoin address */
+        IsLedger      = 2,
         LedgerAccount = 3,
-        LedgerIndex = 4,
-        LedgerPath = 5,
+        LedgerIndex   = 4,
+        LedgerPath    = 5,
     };
 
     enum RoleIndex
@@ -38,21 +38,21 @@ public:
     /** Return status of edit/insert operation */
     enum EditStatus
     {
-        OK,                          /**< Everything ok */
-        NO_CHANGES,                  /**< No changes were made during edit operation */
-        INVALID_ADDRESS,             /**< Unparseable address */
-        DUPLICATE_ADDRESS,           /**< Address already in address book */
-        INVALID_LEDGER_ACCOUNT,      /**< Ledger account outside of recommended range */
-        INVALID_LEDGER_INDEX,        /**< Ledger index outside of recommended range */
-        WALLET_UNLOCK_FAILURE,       /**< Wallet could not be unlocked to create new receiving address */
-        KEY_GENERATION_FAILURE,      /**< Generating a new public key for a receiving address failed */
-        LABEL_USED_BY_LEDGER,        /**< Using this label would break Ledger's unique label requirement */
+        OK,                     /**< Everything ok */
+        NO_CHANGES,             /**< No changes were made during edit operation */
+        INVALID_ADDRESS,        /**< Unparseable address */
+        DUPLICATE_ADDRESS,      /**< Address already in address book */
+        INVALID_LEDGER_ACCOUNT, /**< Ledger account outside of recommended range */
+        INVALID_LEDGER_INDEX,   /**< Ledger index outside of recommended range */
+        WALLET_UNLOCK_FAILURE,  /**< Wallet could not be unlocked to create new receiving address */
+        KEY_GENERATION_FAILURE, /**< Generating a new public key for a receiving address failed */
+        LABEL_USED_BY_LEDGER,   /**< Using this label would break Ledger's unique label requirement */
         LABEL_NOT_USABLE_FOR_LEDGER, /**< Ledger address requires a fresh, unique label */
         LEDGER_ERROR                 /**< Ledger operation error */
     };
 
-    static const QString Send;    /**< Specifies send address */
-    static const QString Receive; /**< Specifies receive address */
+    static const QString Send;          /**< Specifies send address */
+    static const QString Receive;       /**< Specifies receive address */
     static const QString ReceiveLedger; /**< Specifies Ledger address */
 
     /** @name Methods overridden from QAbstractTableModel
@@ -70,7 +70,8 @@ public:
     /* Add an address to the model.
        Returns the added address on success, and an empty string otherwise.
      */
-    QString addRow(const QString& type, const QString& label, const QString& address, const QString& ledgerAccount, const QString& ledgerIndex);
+    QString addRow(const QString& type, const QString& label, const QString& address,
+                   const QString& ledgerAccount, const QString& ledgerIndex);
 
     /* Look up label for address in address book, if not found return empty string.
      */
@@ -112,8 +113,8 @@ signals:
 public slots:
     /* Update address list from core.
      */
-    void updateEntry(const QString& address, const QString& label, isminetype isMine, const QString& purpose,
-                     int status);
+    void updateEntry(const QString& address, const QString& label, isminetype isMine,
+                     const QString& purpose, int status);
 
     friend class AddressTablePriv;
 };
