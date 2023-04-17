@@ -440,6 +440,9 @@ Value getnewpubkey(const Array& params, bool fHelp)
     if (!pwalletMain->IsLocked())
         pwalletMain->TopUpKeyPool();
 
+    if (pwalletMain->CheckLabelAvailability(strAccount, false) == LabelAvailability::USED_BY_LEDGER)
+        throw JSONRPCError(RPC_WALLET_ERROR, "Label used By Ledger");
+
     // Generate a new key that is added to wallet
     CPubKey newKey;
     if (!pwalletMain->GetKeyFromPool(newKey))
@@ -468,6 +471,9 @@ Value getnewaddress(const Array& params, bool fHelp)
 
     if (!pwalletMain->IsLocked())
         pwalletMain->TopUpKeyPool();
+
+    if (pwalletMain->CheckLabelAvailability(strAccount, false) == LabelAvailability::USED_BY_LEDGER)
+        throw JSONRPCError(RPC_WALLET_ERROR, "Label used By Ledger");
 
     // Generate a new key that is added to wallet
     CPubKey newKey;
@@ -630,7 +636,8 @@ Value setaccount(const Array& params, bool fHelp)
             GetAccountAddress(strOldAccount, true);
     }
 
-    pwalletMain->SetAddressBookEntry(address.Get(), strAccount);
+    if (!pwalletMain->SetAddressBookEntry(address.Get(), strAccount))
+        throw JSONRPCError(RPC_MISC_ERROR, "An error occurred while setting the account.");
 
     return Value::null;
 }
@@ -1724,6 +1731,9 @@ Value addmultisigaddress(const Array& params, bool fHelp)
     string       strAccount;
     if (params.size() > 2)
         strAccount = AccountFromValue(params[2]);
+
+    if (pwalletMain->CheckLabelAvailability(strAccount, false) == LabelAvailability::USED_BY_LEDGER)
+        throw JSONRPCError(RPC_WALLET_ERROR, "Label used By Ledger");
 
     // Gather public keys
     if (nRequired < 1)

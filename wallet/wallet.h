@@ -344,7 +344,7 @@ public:
     DBErrors LoadWallet(bool& fFirstRunRet);
 
     bool SetAddressBookEntry(const CTxDestination& address, const std::string& strName,
-                             const std::string& strPurpose = AddressBook::AddressBookPurpose::UNKNOWN);
+                             const std::string& strPurpose = AddressBook::AddressBookPurpose::UNKNOWN, bool fLedgerAddress = false);
 
     bool DelAddressBookName(const CTxDestination& address);
 

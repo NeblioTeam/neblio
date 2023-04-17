@@ -2841,8 +2841,14 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
 }
 
 bool CWallet::SetAddressBookEntry(const CTxDestination& address, const string& strName,
-                                  const std::string& strPurpose)
+                                  const std::string& strPurpose, bool fLedgerAddress)
 {
+
+    if (fLedgerAddress && pwalletMain->CheckLabelAvailability(strName, true) != LabelAvailability::AVAILABLE)
+        return false;
+    if (!fLedgerAddress && pwalletMain->CheckLabelAvailability(strName, false) == LabelAvailability::USED_BY_LEDGER)
+        return false;
+
     bool fUpdated = HasAddressBookEntry(address);
     {
         AddressBook::CAddressBookData d;
