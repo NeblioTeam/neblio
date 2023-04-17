@@ -169,7 +169,7 @@ public:
             }
 
             if (ledgerKey.isChange != isChange) {
-                throw std::runtime_error("Function called with wrong isChange parameter");
+                return false;
             }
 
             auto it =
