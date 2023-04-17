@@ -1416,6 +1416,14 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<int>(params[3]);
     if (strMethod == "cancelallvotesofproposal" && n > 0)
         ConvertTo<int>(params[0]);
+    if (strMethod == "addledgeraddress" && n > 0)
+        ConvertTo<int>(params[0]);
+    if (strMethod == "addledgeraddress" && n > 1)
+        ConvertTo<int>(params[1]);
+    if (strMethod == "generatetoaddress" && n > 0)
+        ConvertTo<int>(params[0]);
+    if (strMethod == "generatetoaddress" && n > 2)
+        ConvertTo<int>(params[2]);
 
     return params;
 }
