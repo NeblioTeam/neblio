@@ -749,7 +749,9 @@ Value getaccount(const Array& params, bool fHelp)
         strAccount = mi->name;
     } else if (pwalletMain->HaveLedgerKey(keyID)) {
         CLedgerKey ledgerPaymentKey;
-        pwalletMain->GetOtherLedgerKey(keyID, ledgerPaymentKey, true);
+        if (!pwalletMain->GetOtherLedgerKey(keyID, ledgerPaymentKey, true))
+            throw JSONRPCError(RPC_MISC_ERROR, "Error: Corresponding Ledger payment key not found.");
+
         const auto miLedger = pwalletMain->mapAddressBook.get(ledgerPaymentKey.vchPubKey.GetID());
         if (miLedger.is_initialized() && !miLedger->name.empty()) {
             strAccount = miLedger->name;
