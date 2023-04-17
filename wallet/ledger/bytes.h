@@ -1,5 +1,5 @@
-#ifndef __LEDGER_BYTES
-#define __LEDGER_BYTES 1
+#ifndef LEDGER_BYTES_H
+#define LEDGER_BYTES_H
 
 #include <cstdint>
 #include <vector>
@@ -9,4 +9,4 @@ namespace ledger
     typedef std::vector<uint8_t> bytes;
 }
 
-#endif
+#endif // LEDGER_BYTES_H

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LEDGER_SPECULOS_H
+#define LEDGER_SPECULOS_H
 
 #include "ledger/comm.h"
 
@@ -20,3 +21,5 @@ namespace ledger
 		bool opened = false;
 	};
 } // namespace ledger
+
+#endif // LEDGER_SPECULOS_H

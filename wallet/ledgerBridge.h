@@ -1,3 +1,6 @@
+#ifndef LEDGERBRIDGE_H
+#define LEDGERBRIDGE_H
+
 #include "ledger/bip32.h"
 #include "ledger/tx.h"
 #include "ledger/bytes.h"
@@ -34,7 +37,7 @@ namespace ledgerbridge
 
             LedgerBridge();
             ~LedgerBridge();
-            
+
             ledger::bytes GetPublicKey(ledger::Ledger& ledger, const ledger::Bip32Path path, bool display);
             ledger::bytes GetPublicKey(const ledger::Bip32Path path, bool display);
             ledger::bytes GetPublicKey(int account, bool isChange, int index, bool display);
@@ -44,3 +47,5 @@ namespace ledgerbridge
             ledger::Tx ToLedgerTx(const CTransaction& tx);
     };
 }
+
+#endif // LEDGERBRIDGE_H

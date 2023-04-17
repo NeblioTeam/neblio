@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LEDGER_LEDGER_H
+#define LEDGER_LEDGER_H
 
 #include "ledger/bip32.h"
 #include "ledger/bytes.h"
@@ -43,3 +44,5 @@ namespace ledger
 		TrustedInput DeserializeTrustedInput(const bytes &serializedTrustedInput);
 	};
 }
+
+#endif // LEDGER_LEDGER_H

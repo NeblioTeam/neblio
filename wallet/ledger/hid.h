@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LEDGER_HID_H
+#define LEDGER_HID_H
 
 #include "ledger/comm.h"
 
@@ -25,3 +26,5 @@ namespace ledger
 		unsigned short vendorId = 0x2c97; // Ledger Vendor ID
 	};
 } // namespace ledger
+
+#endif // LEDGER_HID_H

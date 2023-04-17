@@ -1,5 +1,5 @@
-#ifndef _LEDGER_UTILS
-#define _LEDGER_UTILS 1
+#ifndef LEDGER_UTILS_H
+#define LEDGER_UTILS_H
 
 #include "ledger/bytes.h"
 
@@ -31,4 +31,4 @@ const uint32_t MAX_RECOMMENDED_ACCOUNT = 100;
 const uint32_t MAX_RECOMMENDED_INDEX = 50000;
 } // namespace ledger
 
-#endif
+#endif // LEDGER_UTILS_H

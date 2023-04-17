@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LEDGER_COMM_H
+#define LEDGER_COMM_H
 
 #include <string>
 #include <vector>
@@ -19,3 +20,5 @@ namespace ledger
 		[[nodiscard]] virtual bool isOpen() const = 0;
 	};
 } // namespace ledger
+
+#endif // LEDGER_COMM_H

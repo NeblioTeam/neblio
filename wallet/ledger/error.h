@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LEDGER_ERROR_H
+#define LEDGER_ERROR_H
 
 #include <string>
 
@@ -49,3 +50,5 @@ namespace ledger {
 		std::string message;
 	};
 } // namespace ledger
+
+#endif // LEDGER_ERROR_H

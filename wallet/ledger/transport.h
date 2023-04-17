@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LEDGER_TRANSPORT_H
+#define LEDGER_TRANSPORT_H
 
 #include "ledger/bytes.h"
 #include "ledger/comm.h"
@@ -29,3 +30,5 @@ namespace ledger
 		std::unique_ptr<Comm> comm;
 	};
 } // namespace ledger
+
+#endif // LEDGER_TRANSPORT_H

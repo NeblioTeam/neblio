@@ -1,5 +1,5 @@
-#ifndef __LEDGER_BIP32
-#define __LEDGER_BIP32 1
+#ifndef LEDGER_BIP32_H
+#define LEDGER_BIP32_H
 
 #include "ledger/bytes.h"
 
@@ -47,4 +47,4 @@ namespace ledger
     };
 }
 
-#endif
+#endif // LEDGER_BIP32_H

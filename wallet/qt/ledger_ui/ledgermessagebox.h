@@ -1,5 +1,5 @@
-#ifndef __LEDGER_LEDGERMESSAGEBOX
-#define __LEDGER_LEDGERMESSAGEBOX 1
+#ifndef LEDGER_UI_LEDGERMESSAGEBOX_H
+#define LEDGER_UI_LEDGERMESSAGEBOX_H
 
 #include <QObject>
 #include <QWidget>
@@ -27,4 +27,4 @@ namespace ledger_ui
     };
 }
 
-#endif
+#endif // LEDGER_UI_LEDGERMESSAGEBOX_H

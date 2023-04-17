@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LEDGER_TX_H
+#define LEDGER_TX_H
 
 #include "ledger/bytes.h"
 #include "ledger/transport.h"
@@ -69,3 +70,5 @@ namespace ledger
     Tx DeserializeTransaction(const bytes &transaction);
     TrustedInput DeserializeTrustedInput(const bytes &serializedTrustedInput);
 }
+
+#endif // LEDGER_TX_H
