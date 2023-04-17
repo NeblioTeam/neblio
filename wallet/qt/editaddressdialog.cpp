@@ -78,7 +78,6 @@ EditAddressDialog::EditAddressDialog(Mode modeIn, QWidget *parent) :
 
     connect(this->ui->ledgerAccountEdit, SIGNAL(textChanged(QString)), this, SLOT(updateLedgerPathLabel()));
     connect(this->ui->ledgerIndexEdit, SIGNAL(textChanged(QString)), this, SLOT(updateLedgerPathLabel()));
-    updateLedgerPathLabel();
 }
 
 EditAddressDialog::~EditAddressDialog()
@@ -221,16 +220,13 @@ void EditAddressDialog::accept()
 
 void EditAddressDialog::updateLedgerPathLabel()
 {
-    if (!ledgerItemsVisible) {
+    QString account = ui->ledgerAccountEdit->text();
+    QString index = ui->ledgerIndexEdit->text();
+
+    if (!ledgerItemsVisible || account.isEmpty() || index.isEmpty()) {
         return;
     }
-
-    auto path = ledger::Bip32Path(
-        ui->ledgerAccountEdit->text().toStdString(),
-        false,
-        ui->ledgerIndexEdit->text().toStdString()
-    ).ToString();
-
+    auto path = ledger::Bip32Path(account.toStdString(), false, index.toStdString()).ToString();
     ui->ledgerPathLabel->setText(tr("Ledger path: %1").arg(QString::fromStdString(path)));
 }
 
@@ -246,6 +242,8 @@ void EditAddressDialog::on_ledgerCheckBox_toggled(bool checked)
     ui->ledgerWidget->setVisible(ledgerItemsVisible);
     ui->ledgerPathLabel->setVisible(ledgerItemsVisible);
     ui->ledgerInfoLabel->setVisible(ledgerItemsVisible);
+
+    updateLedgerPathLabel();
 
     // reset dialog height after hiding ledger items
     setFixedHeight(sizeHint().height());
