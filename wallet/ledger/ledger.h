@@ -27,8 +27,8 @@ public:
 
     void open();
 
-    std::tuple<bytes, std::string, bytes> GetPublicKey(const Bip32Path path, bool confirm);
-    std::vector<bytes> SignTransaction(const Tx& tx, bool hasChange, const Bip32Path changePath,
+    std::tuple<bytes, std::string, bytes> GetPublicKey(const Bip32Path& path, bool confirm);
+    std::vector<bytes> SignTransaction(const Tx& tx, bool hasChange, const Bip32Path& changePath,
                                        const std::vector<Bip32Path>& signPaths,
                                        const std::vector<Utxo>&      utxos);
 
@@ -40,7 +40,7 @@ private:
     bytes        ProcessScriptBlocks(const bytes& script, uint32_t sequence);
     bytes        GetTrustedInput(const Tx& utxoTx, uint32_t indexLookup);
     bytes        GetTrustedInputRaw(bool firstRound, const bytes& data);
-    void         UntrustedHashTxInputFinalize(const Tx& tx, bool hasChange, const Bip32Path changePath);
+    void         UntrustedHashTxInputFinalize(const Tx& tx, bool hasChange, const Bip32Path& changePath);
     void         UntrustedHashTxInputStart(const Tx& tx, const std::vector<TrustedInput>& trustedInputs,
                                            int inputIndex, bytes script, bool isNewTransaction);
     TrustedInput DeserializeTrustedInput(const bytes& serializedTrustedInput);

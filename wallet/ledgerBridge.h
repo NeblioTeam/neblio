@@ -35,12 +35,12 @@ public:
     LedgerBridge();
     ~LedgerBridge();
 
-    ledger::bytes GetPublicKey(ledger::Ledger& ledger, const ledger::Bip32Path path, bool display);
-    ledger::bytes GetPublicKey(const ledger::Bip32Path path, bool display);
+    ledger::bytes GetPublicKey(ledger::Ledger& ledger, const ledger::Bip32Path& path, bool display);
+    ledger::bytes GetPublicKey(const ledger::Bip32Path& path, bool display);
     ledger::bytes GetPublicKey(int account, bool isChange, int index, bool display);
     ledger::bytes GetAccountPublicKey(int account, bool display);
     void          SignTransaction(const ITxDB& txdb, const CWallet& wallet, CWalletTx& wtxNew,
-                                  const std::vector<LedgerBridgeUtxo>& utxos, bool hasChange);
+                                  const std::vector<LedgerBridgeUtxo>& utxos, bool hasChange, CLedgerKey& changeKey);
 
 private:
     ledger::Tx ToLedgerTx(const CTransaction& tx);

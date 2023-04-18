@@ -24,6 +24,7 @@
 #include "ntp1/ntp1tokenlistmodel.h"
 #include "ntp1/ntp1tools.h"
 
+#include "ledger/bip32.h"
 #include "ledger_ui/ledgermessagebox.h"
 
 void LedgerSignTxWorker::signTx(WalletModel* model, QList<SendCoinsRecipient> recipients,
@@ -725,12 +726,18 @@ void SendCoinsDialog::coinControlChangeEdited(const QString& text)
             if (!associatedLabel.isEmpty())
                 ui->labelCoinControlChangeLabel->setText(associatedLabel);
             else {
-                CPubKey pubkey;
-                CKeyID  keyid;
+                CPubKey    pubkey;
+                CLedgerKey ledgerKey;
+                CKeyID     keyid;
                 CBitcoinAddress(text.toStdString()).GetKeyID(keyid);
                 if (model->getPubKey(keyid, pubkey))
                     ui->labelCoinControlChangeLabel->setText(tr("(no label)"));
-                else {
+                else if (model->getLedgerKey(keyid, ledgerKey)) {
+                    ui->labelCoinControlChangeLabel->setText(QString::fromStdString(
+                        "Ledger change address: " +
+                        ledger::Bip32Path(ledgerKey.account, ledgerKey.isChange, ledgerKey.index)
+                            .ToString()));
+                } else {
                     ui->labelCoinControlChangeLabel->setStyleSheet("QLabel{color:red;}");
                     ui->labelCoinControlChangeLabel->setText(tr("WARNING: unknown change address"));
                 }

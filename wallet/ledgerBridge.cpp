@@ -14,7 +14,7 @@ LedgerBridge::LedgerBridge() {}
 
 LedgerBridge::~LedgerBridge() {}
 
-ledger::bytes LedgerBridge::GetPublicKey(ledger::Ledger& ledger, const ledger::Bip32Path path,
+ledger::bytes LedgerBridge::GetPublicKey(ledger::Ledger& ledger, const ledger::Bip32Path& path,
                                          bool display)
 {
     auto result = ledger.GetPublicKey(path, display);
@@ -22,7 +22,7 @@ ledger::bytes LedgerBridge::GetPublicKey(ledger::Ledger& ledger, const ledger::B
     return ledger::CompressPubKey(std::get<0>(result));
 }
 
-ledger::bytes LedgerBridge::GetPublicKey(const ledger::Bip32Path path, bool display)
+ledger::bytes LedgerBridge::GetPublicKey(const ledger::Bip32Path& path, bool display)
 {
     ledger::Ledger ledger(TRANSPORT_TYPE);
     ledger.open();
@@ -41,7 +41,8 @@ ledger::bytes LedgerBridge::GetAccountPublicKey(int account, bool display)
 }
 
 void LedgerBridge::SignTransaction(const ITxDB& txdb, const CWallet& wallet, CWalletTx& wtxNew,
-                                   const std::vector<LedgerBridgeUtxo>& utxos, bool hasChange)
+                                   const std::vector<LedgerBridgeUtxo>& utxos, bool hasChange,
+                                   CLedgerKey& changeKey)
 {
     std::vector<ledger::Bip32Path> signaturePaths;
 
@@ -68,11 +69,7 @@ void LedgerBridge::SignTransaction(const ITxDB& txdb, const CWallet& wallet, CWa
             ledger::Bip32Path(ledgerKey.account, ledgerKey.isChange, ledgerKey.index));
     }
 
-    // We only support transaction from a single Ledger address for now so all the signature paths
-    // should be the same. Even if that was to change this would still be a valid approach
-    // to determining the change path. If users would like to use a different change path
-    // they could leverage the coin control feature.
-    auto changePath = signaturePaths[0].ToChangePath();
+    auto changePath = ledger::Bip32Path(changeKey.account, changeKey.isChange, changeKey.index);
 
     ledger::Ledger ledger(TRANSPORT_TYPE);
     ledger.open();

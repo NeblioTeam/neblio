@@ -18,7 +18,7 @@ Ledger::~Ledger() { transport->close(); }
 
 void Ledger::open() { transport->open(); }
 
-std::tuple<bytes, std::string, bytes> Ledger::GetPublicKey(const Bip32Path path, bool confirm)
+std::tuple<bytes, std::string, bytes> Ledger::GetPublicKey(const Bip32Path& path, bool confirm)
 {
     auto payload = bytes();
 
@@ -96,7 +96,7 @@ bytes Ledger::GetTrustedInput(const Tx& utxoTx, uint32_t indexLookup)
     return GetTrustedInputRaw(false, IntToBytes(utxoTx.locktime, 4));
 }
 
-void Ledger::UntrustedHashTxInputFinalize(const Tx& tx, bool hasChange, const Bip32Path changePath)
+void Ledger::UntrustedHashTxInputFinalize(const Tx& tx, bool hasChange, const Bip32Path& changePath)
 {
     auto ins = APDU::INS_UNTRUSTED_HASH_TRANSACTION_INPUT_FINALIZE;
     auto p2  = 0x00;
@@ -165,7 +165,7 @@ void Ledger::UntrustedHashTxInputStart(const Tx& tx, const std::vector<TrustedIn
     }
 }
 
-std::vector<bytes> Ledger::SignTransaction(const Tx& tx, bool hasChange, const Bip32Path changePath,
+std::vector<bytes> Ledger::SignTransaction(const Tx& tx, bool hasChange, const Bip32Path& changePath,
                                            const std::vector<Bip32Path>& signPaths,
                                            const std::vector<Utxo>&      utxos)
 {
@@ -212,7 +212,7 @@ std::vector<bytes> Ledger::SignTransaction(const Tx& tx, bool hasChange, const B
             AppendVector(data, bytes(buffer.begin() + 1, buffer.end()));
             signatures.push_back(data);
         } else {
-            throw LedgerException(ErrorCode::UNRECOGNIZED_ERROR);
+            signatures.push_back(buffer);
         }
     }
 
