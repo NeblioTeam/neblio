@@ -20,6 +20,8 @@ libqrencode-dev libcurl4-openssl-dev libldap2-dev libidn11-dev librtmp-dev libso
 pip install requests
 ```
 
+_Note: For Ubuntu 21.04 and newer the `qt5-default` package needs to be replaced with `qtbase5-dev`._
+
 ### Clone Repo
 ```
 git clone https://github.com/NeblioTeam/neblio
@@ -40,6 +42,8 @@ export BOOST_LIB_PATH=$PWD/boost_build/lib/
 export QRENCODE_INCLUDE_PATH=$PWD/qrencode_build/include/
 export QRENCODE_LIB_PATH=$PWD/qrencode_build/lib/
 ```
+
+_Note: You might need to change `python` to `python3` on newer Ubuntu versions._
 
 ### Build nebliod
 ```
@@ -66,6 +70,8 @@ sudo mv mxe /
 export PATH=/mxe/mxe/usr/bin:$PATH
 ```
 
+_Source for mxe can be found in [contrib/build_mxe](contrib/build_mxe)._
+
 ### Build neblio-Qt
 ```
 i686-w64-mingw32.static-qmake-qt5 "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" neblio-wallet.pro
@@ -73,6 +79,7 @@ make -B -w -j4
 ```
 
 ## macOS
+_Instructions don't work on Apple silicon._
 ### Install the following dependencies (homebrew)
 ```
 brew update
@@ -84,6 +91,7 @@ brew fetch --retry curl          && brew install curl --force
 brew fetch --retry openssl@1.1   && brew install openssl@1.1 --force
 brew fetch --retry qrencode      && brew install qrencode --force
 brew fetch --retry libsodium     && brew install libsodium --force
+brew fetch --retry hidapi        && brew install hidapi --force
 
 brew unlink qt            && brew link --force --overwrite qt
 brew unlink berkeley-db@4 && brew link --force --overwrite berkeley-db@4
@@ -94,6 +102,7 @@ brew unlink python        && brew link --force --overwrite python
 brew unlink openssl@1.1   && brew link --force --overwrite openssl@1.1
 brew unlink qrencode      && brew link --force --overwrite qrencode
 brew unlink libsodium     && brew link --force --overwrite libsodium
+brew unlink hidapi        && brew link --force --overwrite hidapi
 ```
 
 ### Build neblio-Qt
