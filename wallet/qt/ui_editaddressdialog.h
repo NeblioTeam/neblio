@@ -20,6 +20,7 @@
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QVBoxLayout>
+#include <QtWidgets/QCheckBox>
 
 QT_BEGIN_NAMESPACE
 
@@ -33,6 +34,16 @@ public:
     QLabel *label_2;
     QLineEdit *addressEdit;
     QDialogButtonBox *buttonBox;
+
+    QCheckBox *ledgerCheckBox;
+    QWidget *ledgerWidget;
+    QFormLayout *ledgerFormLayout;
+    QLabel *ledgerAccountLabel;
+    QLineEdit *ledgerAccountEdit;
+    QLabel *ledgerIndexLabel;
+    QLineEdit *ledgerIndexEdit;
+    QLabel *ledgerPathLabel;
+    QLabel *ledgerInfoLabel;
 
     void setupUi(QDialog *EditAddressDialog)
     {
@@ -68,6 +79,47 @@ public:
 
         verticalLayout->addLayout(formLayout);
 
+
+        ledgerCheckBox = new QCheckBox(EditAddressDialog);
+        ledgerCheckBox->setObjectName(QStringLiteral("ledgerCheckBox"));
+        verticalLayout->addWidget(ledgerCheckBox);
+
+        ledgerWidget = new QWidget(EditAddressDialog);
+        ledgerWidget->setObjectName(QStringLiteral("ledgerWidget"));
+
+        ledgerFormLayout = new QFormLayout();
+        ledgerFormLayout->setObjectName(QStringLiteral("ledgerFormLayout"));
+        ledgerFormLayout->setContentsMargins(0, 0, 0, 0);
+        ledgerWidget->setLayout(ledgerFormLayout);
+
+        ledgerAccountLabel = new QLabel(EditAddressDialog);
+        ledgerAccountLabel->setObjectName(QStringLiteral("ledgerAccountLabel"));
+        ledgerFormLayout->setWidget(0, QFormLayout::LabelRole, ledgerAccountLabel);
+
+        ledgerAccountEdit = new QLineEdit(EditAddressDialog);
+        ledgerAccountEdit->setObjectName(QStringLiteral("ledgerAccountEdit"));
+        ledgerFormLayout->setWidget(0, QFormLayout::FieldRole, ledgerAccountEdit);
+
+        ledgerIndexLabel = new QLabel(EditAddressDialog);
+        ledgerIndexLabel->setObjectName(QStringLiteral("ledgerIndexLabel"));
+        ledgerFormLayout->setWidget(1, QFormLayout::LabelRole, ledgerIndexLabel);
+
+        ledgerIndexEdit = new QLineEdit(EditAddressDialog);
+        ledgerIndexEdit->setObjectName(QStringLiteral("ledgerIndexEdit"));
+        ledgerFormLayout->setWidget(1, QFormLayout::FieldRole, ledgerIndexEdit);
+
+        verticalLayout->addWidget(ledgerWidget);
+
+        ledgerPathLabel = new QLabel(EditAddressDialog);
+        ledgerPathLabel->setObjectName(QStringLiteral("ledgerPathLabel"));
+        verticalLayout->addWidget(ledgerPathLabel);
+
+        ledgerInfoLabel = new QLabel(EditAddressDialog);
+        ledgerInfoLabel->setObjectName(QStringLiteral("ledgerInfoLabel"));
+        ledgerInfoLabel->setWordWrap(true);
+        verticalLayout->addWidget(ledgerInfoLabel);
+
+
         buttonBox = new QDialogButtonBox(EditAddressDialog);
         buttonBox->setObjectName(QStringLiteral("buttonBox"));
         buttonBox->setOrientation(Qt::Horizontal);
@@ -78,6 +130,8 @@ public:
 #ifndef QT_NO_SHORTCUT
         label->setBuddy(labelEdit);
         label_2->setBuddy(addressEdit);
+        ledgerAccountLabel->setBuddy(ledgerAccountEdit);
+        ledgerIndexLabel->setBuddy(ledgerIndexEdit);
 #endif // QT_NO_SHORTCUT
 
         retranslateUi(EditAddressDialog);
@@ -98,6 +152,19 @@ public:
 #ifndef QT_NO_TOOLTIP
         addressEdit->setToolTip(QApplication::translate("EditAddressDialog", "The address associated with this address book entry. This can only be modified for sending addresses.", Q_NULLPTR));
 #endif // QT_NO_TOOLTIP
+        ledgerCheckBox->setText(QApplication::translate("EditAddressDialog", "L&edger address", Q_NULLPTR));
+#ifndef QT_NO_TOOLTIP
+        ledgerCheckBox->setToolTip(QApplication::translate("EditAddressDialog", "Should the address be controlled by a Ledger hardware wallet", Q_NULLPTR));
+#endif // QT_NO_TOOLTIP
+        ledgerAccountLabel->setText(QApplication::translate("EditAddressDialog", "Ledger acc&ount number", Q_NULLPTR));
+#ifndef QT_NO_TOOLTIP
+        ledgerAccountEdit->setToolTip(QApplication::translate("EditAddressDialog", "The account number in the Ledger address derivation path", Q_NULLPTR));
+#endif // QT_NO_TOOLTIP
+        ledgerIndexLabel->setText(QApplication::translate("EditAddressDialog", "Ledger a&ddress index", Q_NULLPTR));
+#ifndef QT_NO_TOOLTIP
+        ledgerIndexEdit->setToolTip(QApplication::translate("EditAddressDialog", "The address index in the Ledger address derivation path", Q_NULLPTR));
+#endif // QT_NO_TOOLTIP
+        ledgerInfoLabel->setText(QApplication::translate("EditAddressDialog", "Make sure to connect your Ledger device and open the neblio app before continuing.", Q_NULLPTR));
     } // retranslateUi
 
 };

@@ -1617,7 +1617,9 @@ public:
     isminetype operator()(const CNoDestination& /*dest*/) const { return isminetype::ISMINE_NO; }
     isminetype operator()(const CKeyID& keyID) const
     {
-        return keystore->HaveKey(keyID) ? isminetype::ISMINE_SPENDABLE : isminetype::ISMINE_NO;
+        return keystore->HaveKey(keyID)         ? isminetype::ISMINE_SPENDABLE
+               : keystore->HaveLedgerKey(keyID) ? isminetype::ISMINE_LEDGER
+                                                : isminetype::ISMINE_NO;
     }
     isminetype operator()(const CScriptID& scriptID) const
     {
@@ -1646,11 +1648,15 @@ isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey)
         keyID = CPubKey(vSolutions[0]).GetID();
         if (keystore.HaveKey(keyID))
             return isminetype::ISMINE_SPENDABLE;
+        if (keystore.HaveLedgerKey(keyID))
+            return isminetype::ISMINE_LEDGER;
         break;
     case TX_PUBKEYHASH:
         keyID = CKeyID(uint160(vSolutions[0]));
         if (keystore.HaveKey(keyID))
             return isminetype::ISMINE_SPENDABLE;
+        if (keystore.HaveLedgerKey(keyID))
+            return isminetype::ISMINE_LEDGER;
         break;
     case TX_SCRIPTHASH: {
         CScript subscript;
@@ -1709,6 +1715,21 @@ bool ExtractDestination(const ITxDB& txdb, const CScript& scriptPubKey, CTxDesti
         return true;
     }
     // Multisig txns have more than one address...
+    return false;
+}
+
+bool ExtractKeyID(const ITxDB& txdb, const CScript& scriptPubKey, CKeyID& addressRet)
+{
+    vector<valtype> vSolutions;
+    txnouttype      whichType;
+    if (!Solver(txdb, scriptPubKey, whichType, vSolutions))
+        return false;
+
+    if (whichType == TX_PUBKEYHASH) {
+        addressRet = CKeyID(uint160(vSolutions[0]));
+        return true;
+    }
+
     return false;
 }
 

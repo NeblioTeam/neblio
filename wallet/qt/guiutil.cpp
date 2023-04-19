@@ -52,7 +52,7 @@ QString dateTimeStr(qint64 nTime)
     return dateTimeStr(QDateTime::fromTime_t((qint32)nTime));
 }
 
-QFont bitcoinAddressFont()
+QFont monospaceFont()
 {
     QFont font("Monospace");
 #if QT_VERSION >= 0x040800
@@ -67,7 +67,7 @@ void setupAddressWidget(QLineEdit *widget, QWidget *parent)
 {
     widget->setMaxLength(BitcoinAddressValidator::MaxAddressLength);
     widget->setValidator(new BitcoinAddressValidator(parent));
-    widget->setFont(bitcoinAddressFont());
+    widget->setFont(monospaceFont());
 }
 
 void setupAmountWidget(QLineEdit *widget, QWidget *parent)
@@ -77,6 +77,12 @@ void setupAmountWidget(QLineEdit *widget, QWidget *parent)
     amountValidator->setBottom(0.0);
     widget->setValidator(amountValidator);
     widget->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
+}
+
+void setupIntWidget(QLineEdit *widget, QWidget *parent, int bottom, int top)
+{
+    QIntValidator *intValidator = new QIntValidator(bottom, top, parent);
+    widget->setValidator(intValidator);
 }
 
 bool parseBitcoinURI(const QUrl &uri, SendCoinsRecipient *out)
@@ -460,4 +466,3 @@ void HelpMessageBox::showOrPrint()
 }
 
 } // namespace GUIUtil
-

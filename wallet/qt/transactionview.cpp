@@ -198,7 +198,7 @@ void TransactionView::setModel(WalletModel* modelIn)
         transactionView->horizontalHeader()->resizeSection(TransactionTableModel::Date, 120);
         transactionView->horizontalHeader()->resizeSection(TransactionTableModel::Type, 120);
         transactionView->horizontalHeader()->setSectionResizeMode(TransactionTableModel::ToAddress,
-                                                           QHeaderView::Stretch);
+                                                                  QHeaderView::Stretch);
         transactionView->horizontalHeader()->resizeSection(TransactionTableModel::Amount, 120);
     }
 }
@@ -236,7 +236,8 @@ void TransactionView::chooseDate(int idx)
     case ThisWeek: {
         // Find last Monday
         QDate startOfWeek = current.addDays(-(current.dayOfWeek() - 1));
-        transactionProxyModel->setDateRange(GetStartOfDay(startOfWeek), TransactionFilterProxy::MAX_DATE);
+        transactionProxyModel->setDateRange(GetStartOfDay(startOfWeek),
+                                            TransactionFilterProxy::MAX_DATE);
 
     } break;
     case ThisMonth:
@@ -397,7 +398,7 @@ void TransactionView::editLabel()
             // Add sending address
             EditAddressDialog dlg(EditAddressDialog::NewSendingAddress, this);
             dlg.setModel(addressBook);
-            dlg.setAddress(address);
+            dlg.setAddressEditValue(address);
             dlg.exec();
         }
     }

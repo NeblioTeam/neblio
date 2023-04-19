@@ -21,20 +21,29 @@ public:
     virtual ~CKeyStore() {}
 
     // Add a key to the store.
-    virtual bool AddKey(const CKey& key) =0;
+    virtual bool AddKey(const CKey& key) = 0;
 
     // Check whether a key corresponding to a given address is present in the store.
-    virtual bool HaveKey(const CKeyID &address) const =0;
-    virtual bool GetKey(const CKeyID &address, CKey& keyOut) const =0;
-    virtual void GetKeys(std::set<CKeyID> &setAddress) const =0;
-    virtual bool GetPubKey(const CKeyID &address, CPubKey& vchPubKeyOut) const;
+    virtual bool HaveKey(const CKeyID& address) const              = 0;
+    virtual bool GetKey(const CKeyID& address, CKey& keyOut) const = 0;
+    virtual void GetKeys(std::set<CKeyID>& setAddress) const       = 0;
+    virtual bool GetPubKey(const CKeyID& address, CPubKey& vchPubKeyOut) const;
 
     // Support for BIP 0013 : see https://en.bitcoin.it/wiki/BIP_0013
-    virtual bool AddCScript(const CScript& redeemScript) =0;
-    virtual bool HaveCScript(const CScriptID &hash) const =0;
-    virtual bool GetCScript(const CScriptID &hash, CScript& redeemScriptOut) const =0;
+    virtual bool AddCScript(const CScript& redeemScript)                           = 0;
+    virtual bool HaveCScript(const CScriptID& hash) const                          = 0;
+    virtual bool GetCScript(const CScriptID& hash, CScript& redeemScriptOut) const = 0;
 
-    virtual bool GetSecret(const CKeyID &address, CSecret& vchSecret, bool &fCompressed) const
+    virtual bool HaveLedgerKey(const CKeyID& address) const                          = 0;
+    virtual bool AddLedgerKey(const CLedgerKey& ledgerKey)                           = 0;
+    virtual bool LoadLedgerKey(const CLedgerKey& ledgerKey)                          = 0;
+    virtual void GetLedgerKeys(std::set<CKeyID>& setAddress) const                   = 0;
+    virtual bool GetLedgerKey(const CKeyID& address, CLedgerKey& ledgerKeyOut) const = 0;
+    virtual bool GetOtherLedgerKey(const CKeyID& address, CLedgerKey& ledgerKeyOut,
+                                   bool isChange) const                              = 0;
+    virtual bool IsLedgerChangeKey(const CKeyID& address) const                      = 0;
+
+    virtual bool GetSecret(const CKeyID& address, CSecret& vchSecret, bool& fCompressed) const
     {
         CKey key;
         if (!GetKey(address, key))
@@ -44,19 +53,21 @@ public:
     }
 };
 
-typedef std::map<CKeyID, std::pair<CSecret, bool> > KeyMap;
-typedef std::map<CScriptID, CScript > ScriptMap;
+typedef std::map<CKeyID, std::pair<CSecret, bool>> KeyMap;
+typedef std::map<CScriptID, CScript>               ScriptMap;
+typedef std::map<CKeyID, CLedgerKey>               LedgerKeysMap;
 
 /** Basic key store, that keeps keys in an address->secret map */
 class CBasicKeyStore : public CKeyStore
 {
 protected:
-    KeyMap mapKeys;
-    ScriptMap mapScripts;
+    KeyMap        mapKeys;
+    ScriptMap     mapScripts;
+    LedgerKeysMap mapLedgerKeys;
 
 public:
     bool AddKey(const CKey& key);
-    bool HaveKey(const CKeyID &address) const
+    bool HaveKey(const CKeyID& address) const
     {
         bool result;
         {
@@ -65,26 +76,24 @@ public:
         }
         return result;
     }
-    void GetKeys(std::set<CKeyID> &setAddress) const
+    void GetKeys(std::set<CKeyID>& setAddress) const
     {
         setAddress.clear();
         {
             LOCK(cs_KeyStore);
             KeyMap::const_iterator mi = mapKeys.begin();
-            while (mi != mapKeys.end())
-            {
+            while (mi != mapKeys.end()) {
                 setAddress.insert((*mi).first);
                 mi++;
             }
         }
     }
-    bool GetKey(const CKeyID &address, CKey &keyOut) const
+    bool GetKey(const CKeyID& address, CKey& keyOut) const
     {
         {
             LOCK(cs_KeyStore);
             KeyMap::const_iterator mi = mapKeys.find(address);
-            if (mi != mapKeys.end())
-            {
+            if (mi != mapKeys.end()) {
                 keyOut.Reset();
                 keyOut.SetSecret((*mi).second.first, (*mi).second.second);
                 return true;
@@ -92,12 +101,109 @@ public:
         }
         return false;
     }
+
+    bool HaveLedgerKey(const CKeyID& address) const
+    {
+        bool result;
+        {
+            LOCK(cs_KeyStore);
+            result = (mapLedgerKeys.count(address) > 0);
+        }
+        return result;
+    }
+
+    bool AddLedgerKey(const CLedgerKey& ledgerKey)
+    {
+        {
+            LOCK(cs_KeyStore);
+            mapLedgerKeys[ledgerKey.vchPubKey.GetID()] = ledgerKey;
+        }
+    }
+
+    bool LoadLedgerKey(const CLedgerKey& ledgerKey)
+    {
+        {
+            LOCK(cs_KeyStore);
+            mapLedgerKeys[ledgerKey.vchPubKey.GetID()] = ledgerKey;
+        }
+        return true;
+    }
+
+    void GetLedgerKeys(std::set<CKeyID>& setAddress) const
+    {
+        setAddress.clear();
+        {
+            LOCK(cs_KeyStore);
+            std::map<CKeyID, CLedgerKey>::const_iterator mi = mapLedgerKeys.begin();
+            while (mi != mapLedgerKeys.end()) {
+                setAddress.insert((*mi).first);
+                mi++;
+            }
+        }
+    }
+
+    bool GetLedgerKey(const CKeyID& address, CLedgerKey& ledgerKeyOut) const
+    {
+        {
+            LOCK(cs_KeyStore);
+            std::map<CKeyID, CLedgerKey>::const_iterator mi = mapLedgerKeys.find(address);
+            if (mi != mapLedgerKeys.end()) {
+                ledgerKeyOut = (*mi).second;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /*
+        Returns the "other" Ledger key for a given key. "Other" means that for a payment key
+        we return the corresponding change key and vice versa.
+    */
+    bool GetOtherLedgerKey(const CKeyID& address, CLedgerKey& ledgerKeyOut, bool isChange) const
+    {
+        {
+            LOCK(cs_KeyStore);
+            CLedgerKey ledgerKey;
+            if (!GetLedgerKey(address, ledgerKey)) {
+                return false;
+            }
+
+            if (ledgerKey.isChange != isChange) {
+                return false;
+            }
+
+            auto it =
+                std::find_if(mapLedgerKeys.begin(), mapLedgerKeys.end(),
+                             [&ledgerKey](const std::pair<CKeyID, CLedgerKey>& entry) {
+                                 auto candidateKey = entry.second;
+                                 return candidateKey.isChange != ledgerKey.isChange &&
+                                        candidateKey.accountPubKeyID == ledgerKey.accountPubKeyID &&
+                                        candidateKey.index == ledgerKey.index;
+                             });
+
+            if (it != mapLedgerKeys.end()) {
+                ledgerKeyOut = it->second;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool IsLedgerChangeKey(const CKeyID& address) const
+    {
+        CLedgerKey ledgerKey;
+        if (GetLedgerKey(address, ledgerKey)) {
+            return ledgerKey.isChange;
+        }
+        return false;
+    }
+
     virtual bool AddCScript(const CScript& redeemScript);
-    virtual bool HaveCScript(const CScriptID &hash) const;
-    virtual bool GetCScript(const CScriptID &hash, CScript& redeemScriptOut) const;
+    virtual bool HaveCScript(const CScriptID& hash) const;
+    virtual bool GetCScript(const CScriptID& hash, CScript& redeemScriptOut) const;
 };
 
-typedef std::map<CKeyID, std::pair<CPubKey, std::vector<unsigned char> > > CryptedKeyMap;
+typedef std::map<CKeyID, std::pair<CPubKey, std::vector<unsigned char>>> CryptedKeyMap;
 
 /** Keystore which keeps the private keys encrypted.
  * It derives from the basic key store, which is used if no encryption is active.
@@ -122,14 +228,9 @@ protected:
     bool Unlock(const CKeyingMaterial& vMasterKeyIn);
 
 public:
-    CCryptoKeyStore() : fUseCrypto(false)
-    {
-    }
+    CCryptoKeyStore() : fUseCrypto(false) {}
 
-    bool IsCrypted() const
-    {
-        return fUseCrypto;
-    }
+    bool IsCrypted() const { return fUseCrypto; }
 
     bool IsLocked() const
     {
@@ -145,9 +246,10 @@ public:
 
     bool Lock();
 
-    virtual bool AddCryptedKey(const CPubKey &vchPubKey, const std::vector<unsigned char> &vchCryptedSecret);
-    bool AddKey(const CKey& key);
-    bool HaveKey(const CKeyID &address) const
+    virtual bool AddCryptedKey(const CPubKey&                    vchPubKey,
+                               const std::vector<unsigned char>& vchCryptedSecret);
+    bool         AddKey(const CKey& key);
+    bool         HaveKey(const CKeyID& address) const
     {
         {
             LOCK(cs_KeyStore);
@@ -157,19 +259,17 @@ public:
         }
         return false;
     }
-    bool GetKey(const CKeyID &address, CKey& keyOut) const;
-    bool GetPubKey(const CKeyID &address, CPubKey& vchPubKeyOut) const;
-    void GetKeys(std::set<CKeyID> &setAddress) const
+    bool GetKey(const CKeyID& address, CKey& keyOut) const;
+    bool GetPubKey(const CKeyID& address, CPubKey& vchPubKeyOut) const;
+    void GetKeys(std::set<CKeyID>& setAddress) const
     {
-        if (!IsCrypted())
-        {
+        if (!IsCrypted()) {
             CBasicKeyStore::GetKeys(setAddress);
             return;
         }
         setAddress.clear();
         CryptedKeyMap::const_iterator mi = mapCryptedKeys.begin();
-        while (mi != mapCryptedKeys.end())
-        {
+        while (mi != mapCryptedKeys.end()) {
             setAddress.insert((*mi).first);
             mi++;
         }
@@ -178,7 +278,7 @@ public:
     /* Wallet status (encrypted, locked) changed.
      * Note: Called without locks held.
      */
-    boost::signals2::signal<void (CCryptoKeyStore* wallet)> NotifyStatusChanged;
+    boost::signals2::signal<void(CCryptoKeyStore* wallet)> NotifyStatusChanged;
 };
 
 #endif

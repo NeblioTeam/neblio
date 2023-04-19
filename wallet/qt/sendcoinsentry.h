@@ -15,7 +15,7 @@ class SendCoinsEntry : public QFrame
     Q_OBJECT
 
 public:
-    explicit SendCoinsEntry(QWidget* parent = 0);
+    explicit SendCoinsEntry(QWidget* parent, bool enableNTP1Tokens);
     ~SendCoinsEntry();
 
     void updateNTP1TokensList();
@@ -23,6 +23,7 @@ public:
     void               setModel(WalletModel* modelIn);
     bool               validate();
     SendCoinsRecipient getValue();
+    bool               isNTP1TokenSelected() const;
 
     /** Return whether the entry is still empty and unedited */
     bool isClear();

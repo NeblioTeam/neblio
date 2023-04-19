@@ -1,0 +1,56 @@
+#!/bin/bash
+
+#On Ubuntu Trusty, use these for gettext package:
+#LC_ALL=C.UTF-8 sudo add-apt-repository ppa:cz.nic-labs/knot-dns
+#sudo apt-get update
+
+# docker command: docker run -it ubuntu:xenial /bin/bash
+
+
+apt-get update
+apt-get -y install autoconf automake autopoint bash bison bzip2 flex gettext git g++ gperf intltool libffi-dev libgdk-pixbuf2.0-dev libltdl-dev libssl-dev libxml-parser-perl make openssl p7zip-full patch perl pkg-config python ruby scons sed unzip wget xz-utils libtool-bin g++-multilib libc6-dev-i386 lzip libudev-dev libusb-1.0-0-dev libhidapi-dev
+
+
+git clone https://github.com/mxe/mxe.git
+# change libcurl dependencies as Neblio needs
+#sed -i 's/--without-ssl/--with-ssl --disable-shared --with-random/g' mxe/src/curl.mk
+#sed -i 's/--with-gnutls/--without-gnutls/g'            mxe/src/curl.mk
+sed -i 's/--with-libidn2/--without-libidn2/g'          mxe/src/curl.mk
+sed -i 's/--with-libssh2/--without-libssh2/g'          mxe/src/curl.mk
+cd mxe
+
+#openssl must be before curl
+make openssl && make boost && make db && make miniupnpc && make libqrencode && make curl && make libsodium && make hidapi && make qt5 
+
+cd ..
+
+# UPNP
+#!/bin/bash
+
+SCRIPT_PATH="`dirname \"$0\"`"
+SCRIPT_PATH="`( cd \"$MY_PATH\" && pwd )`"
+
+export MXE_PATH=${SCRIPT_PATH}/mxe
+export UPNP_PATH=${SCRIPT_PATH}/miniupnpc-1.6.20120509
+
+rm -fr miniupnpc-1.*
+
+wget http://miniupnp.free.fr/files/download.php?file=miniupnpc-1.6.20120509.tar.gz -O miniupnpc-1.6.20120509.tar.gz
+tar -xvf ${UPNP_PATH}.tar.gz
+
+
+rm -rf $MXE_PATH/usr/i686-w64-mingw32.static/include/miniupnpc
+
+cd $UPNP_PATH
+
+CC=$MXE_PATH/usr/bin/i686-w64-mingw32.static-gcc \
+AR=$MXE_PATH/usr/bin/i686-w64-mingw32.static-ar \
+CFLAGS="-DSTATICLIB -I$MXE_PATH/usr/i686-w64-mingw32.static/include" \
+LDFLAGS="-L$MXE_PATH/usr/i686-w64-mingw32.static/lib" \
+make libminiupnpc.a
+
+cd ..
+
+mkdir $MXE_PATH/usr/i686-w64-mingw32.static/include/miniupnpc
+cp ${UPNP_PATH}/*.h $MXE_PATH/usr/i686-w64-mingw32.static/include/miniupnpc
+cp ${UPNP_PATH}/libminiupnpc.a $MXE_PATH/usr/i686-w64-mingw32.static/lib

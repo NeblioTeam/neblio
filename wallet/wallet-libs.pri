@@ -290,6 +290,19 @@ LIBS += -lsodium
 windows:LIBS += -lboost_chrono$$BOOST_LIB_SUFFIX
 macx: LIBS += -lcurl
 
+macx: INCLUDEPATH += /usr/local/opt/hidapi/include
+macx: LIBS += -L/usr/local/opt/hidapi/lib
+
+!windows:!macx {
+    LIBS += -lhidapi-libusb
+    LIBS += -lusb-1.0
+} else {
+    LIBS += -lhidapi
+    win32 {
+        LIBS += -lhid -lsetupapi
+    }
+}
+
 # For Fedora
 unix:INCLUDEPATH += /usr/include/libdb4/
 unix:LIBS        += -L/usr/lib64/libdb4/
@@ -338,5 +351,6 @@ contains(RELEASE, 1) {
 
 !windows:!macx {
     DEFINES += LINUX
+    LIBS += -ludev
     LIBS += -lrt -ldl
 }

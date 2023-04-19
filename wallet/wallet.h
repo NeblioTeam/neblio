@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2009-2010 Satoshi Nakamoto
+// Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -48,6 +48,13 @@ enum WalletFeature
     FEATURE_LATEST = 60000
 };
 
+enum LabelAvailability
+{
+    AVAILABLE,
+    USED_BY_LEDGER,        /**< Using this label would break Ledger's unique label requirement */
+    NOT_USABLE_FOR_LEDGER, /**< Ledger address requires a fresh, unique label */
+};
+
 class WalletNewTxUpdateFunctor : public boost::enable_shared_from_this<WalletNewTxUpdateFunctor>
 {
     // reload balances if the current height less than the registered height plus this next value
@@ -86,7 +93,8 @@ private:
                      std::set<std::pair<const CWalletTx*, unsigned int>>& setCoinsRet,
                      CAmount& nValueRet, const CCoinControl* coinControl = nullptr,
                      bool fIncludeColdStaking = false, bool fIncludeDelegated = true,
-                     bool avoidNTP1Outputs = false) const;
+                     bool avoidNTP1Outputs = false, const std::string& strFromAccount = "",
+                     bool fIncludeLedgerCoins = false) const;
 
     CWalletDB* pwalletdbEncryption;
 
@@ -194,7 +202,8 @@ public:
                                   bool fIncludeDelegated = false) const;
     void AvailableCoins(const ITxDB& txdb, std::vector<COutput>& vCoins, bool fOnlyConfirmed = true,
                         bool fIncludeColdStaking = false, bool fIncludeDelegated = true,
-                        const CCoinControl* coinControl = nullptr) const;
+                        const CCoinControl* coinControl   = nullptr,
+                        const std::string& strFromAccount = "", bool fIncludeLedgerCoins = false) const;
 
     // Get available p2cs utxo
     bool GetAvailableP2CSCoins(const ITxDB& txdb, std::vector<COutput>& vCoins) const;
@@ -212,6 +221,7 @@ public:
     CPubKey GenerateNewKey();
     // Adds a key to the store, and saves it to disk.
     bool AddKey(const CKey& key);
+    bool AddLedgerKey(const CLedgerKey& ledgerKey);
     // Adds a key to the store, without saving it to disk (used by LoadWallet)
     bool LoadKey(const CKey& key) { return CCryptoKeyStore::AddKey(key); }
     // Load metadata (used by LoadWallet)
@@ -322,8 +332,8 @@ public:
     CAmount    GetDebit(const CTxIn& txin, const isminefilter& filter) const;
     isminetype IsMine(const CTxOut& txout) const;
     CAmount    GetCredit(const CTxOut& txout, const isminefilter& filter) const;
-    bool       IsChange(const ITxDB& txdb, const CTxOut& txout) const;
-    CAmount    GetChange(const ITxDB& txdb, const CTxOut& txout) const;
+    bool       IsChange(const ITxDB& txdb, const CTransaction& tx, const CTxOut& txout) const;
+    CAmount    GetChange(const ITxDB& txdb, const CTransaction& tx, const CTxOut& txout) const;
     bool       IsMine(const CTransaction& tx) const;
     bool       IsFromMe(const CTransaction& tx) const;
     CAmount    GetDebit(const CTransaction& tx, const isminefilter& filter) const;
@@ -335,7 +345,8 @@ public:
     DBErrors LoadWallet(bool& fFirstRunRet);
 
     bool SetAddressBookEntry(const CTxDestination& address, const std::string& strName,
-                             const std::string& strPurpose = AddressBook::AddressBookPurpose::UNKNOWN);
+                             const std::string& strPurpose = AddressBook::AddressBookPurpose::UNKNOWN,
+                             bool               fLedgerAddress = false);
 
     bool DelAddressBookName(const CTxDestination& address);
 
@@ -367,7 +378,7 @@ public:
      * @note called with lock cs_wallet held.
      */
     boost::signals2::signal<void(CWallet* wallet, const CTxDestination& address,
-                                 const std::string& label, bool isMine, const std::string& purpose,
+                                 const std::string& label, uint64_t isMine, const std::string& purpose,
                                  ChangeType status)>
         NotifyAddressBookChanged;
 
@@ -420,12 +431,19 @@ public:
 
     bool HasDelegator(const ITxDB& txdb, const CTxOut& out) const;
     bool HasAddressBookEntry(const CTxDestination& address) const;
+    bool GetAddressBookEntryByLabel(const std::string& label, CTxDestination& addressOut) const;
 
     /// getNewAddress functions throw std::runtime error on failure
     CBitcoinAddress getNewAddress(const std::string& addressLabel, const std::string& purpose);
     CBitcoinAddress getNewAddress(const std::string& label);
     CBitcoinAddress getNewStakingAddress(const std::string& label);
     CAmount         GetStakingBalance(const ITxDB& txdb, bool fIncludeColdStaking) const;
+
+    bool              IsLedgerAddress(const CTxDestination& address) const;
+    bool              IsLabelUsedByLedger(const std::string& label);
+    bool              IsLabelUsableForLedger(const std::string& label);
+    LabelAvailability CheckLabelAvailability(const std::string& label, bool isLedgerAddress);
+    std::string       ImportLedgerKey(int accountIndex, int addressIndex);
 };
 
 /** A key allocated from the key pool. */
@@ -491,6 +509,7 @@ public:
     std::string                                      strFromAccount;
     std::vector<char>                                vfSpent;   // which outputs are already spent
     int64_t                                          nOrderPos; // position in ordered transaction list
+    bool                                             fLedgerTx;
 
     // memory only
     mutable boost::optional<CAmount> c_WatchDebitCached;
@@ -509,6 +528,8 @@ public:
     mutable boost::optional<CAmount> c_DelegatedDebitCached;
     mutable boost::optional<CAmount> c_DelegatedCreditCached;
     mutable boost::optional<CAmount> c_ImmatureCreditCached;
+    mutable boost::optional<CAmount> c_LedgerCreditCached;
+    mutable boost::optional<CAmount> c_LedgerDebitCached;
 
     CWalletTx() { Init(nullptr); }
 

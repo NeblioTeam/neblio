@@ -7,6 +7,11 @@
 #include "editaddressdialog.h"
 #include "csvmodelwriter.h"
 #include "guiutil.h"
+#include "ledger/bip32.h"
+#include "ledger/error.h"
+#include "ledgerBridge.h"
+#include "ledger_ui/ledgermessagebox.h"
+#include "ledger_ui/ledgeruiutils.h"
 
 #include <QSortFilterProxyModel>
 #include <QClipboard>
@@ -16,6 +21,20 @@
 #ifdef USE_QRCODE
 #include "qrcodedialog.h"
 #endif
+
+void VerifyLedgerAddressWorker::verify(uint32_t account, uint32_t index, QSharedPointer<VerifyLedgerAddressWorker> workerPtr) {
+    ledger::bytes paymentPubKeyBytes;
+    QString errorMessage;
+    try {
+        ledgerbridge::LedgerBridge ledgerBridge;
+        paymentPubKeyBytes = ledgerBridge.GetPublicKey(account, false, index, true);
+    } catch (const ledger::LedgerException& e) {
+        errorMessage = ledger_ui::GetQtErrorMessage(e);
+    }
+
+    emit resultReady(errorMessage);
+    workerPtr.reset();
+}
 
 AddressBookPage::AddressBookPage(Mode modeIn, Tabs tabIn, QWidget *parent) :
     QDialog(parent),
@@ -30,6 +49,11 @@ AddressBookPage::AddressBookPage(Mode modeIn, Tabs tabIn, QWidget *parent) :
 #ifdef Q_OS_MAC // Icons on push buttons are very uncommon on Mac
     ui->newAddressButton->setIcon(QIcon());
     ui->copyToClipboard->setIcon(QIcon());
+    ui->showQRCode->setIcon(QIcon());
+    ui->signMessage->setIcon(QIcon());
+    ui->verifyMessage->setIcon(QIcon());
+    ui->verifyAddress->setIcon(QIcon());
+    ui->addressInfo->setIcon(QIcon());
     ui->deleteButton->setIcon(QIcon());
 #endif
 
@@ -54,10 +78,23 @@ AddressBookPage::AddressBookPage(Mode modeIn, Tabs tabIn, QWidget *parent) :
         ui->labelExplanation->setVisible(false);
         ui->deleteButton->setVisible(true);
         ui->signMessage->setVisible(false);
+        ui->verifyMessage->setVisible(true);
+        ui->verifyAddress->setVisible(false);
+        ui->addressInfo->setVisible(false);
         break;
     case ReceivingTab:
         ui->deleteButton->setVisible(false);
         ui->signMessage->setVisible(true);
+        ui->verifyMessage->setVisible(false);
+        ui->verifyAddress->setVisible(true);
+        ui->addressInfo->setVisible(true);
+        break;
+    case LedgerTab:
+        ui->deleteButton->setVisible(false);
+        ui->signMessage->setVisible(false);
+        ui->verifyMessage->setVisible(false);
+        ui->verifyAddress->setVisible(true);
+        ui->addressInfo->setVisible(true);
         break;
     }
 
@@ -66,8 +103,10 @@ AddressBookPage::AddressBookPage(Mode modeIn, Tabs tabIn, QWidget *parent) :
     QAction *copyAddressAction = new QAction(ui->copyToClipboard->text(), this);
     QAction *editAction = new QAction(tr("&Edit"), this);
     QAction *showQRCodeAction = new QAction(ui->showQRCode->text(), this);
-    QAction *signMessageAction = new QAction(ui->signMessage->text(), this);
-    QAction *verifyMessageAction = new QAction(ui->verifyMessage->text(), this);
+    signMessageAction = new QAction(ui->signMessage->text(), this);
+    verifyMessageAction = new QAction(ui->verifyMessage->text(), this);
+    verifyAddressAction = new QAction(ui->verifyAddress->text(), this);
+    addressInfoAction = new QAction(ui->addressInfo->text(), this);
     deleteAction = new QAction(ui->deleteButton->text(), this);
 
     // Build context menu
@@ -77,14 +116,27 @@ AddressBookPage::AddressBookPage(Mode modeIn, Tabs tabIn, QWidget *parent) :
     contextMenu->addAction(editAction);
     if(tabIn == SendingTab)
         contextMenu->addAction(deleteAction);
+
     contextMenu->addSeparator();
+
 #ifdef USE_QRCODE
     contextMenu->addAction(showQRCodeAction);
 #endif
-    if(tabIn == ReceivingTab)
-        contextMenu->addAction(signMessageAction);
-    else if(tabIn == SendingTab)
+    switch(tabIn)
+    {
+    case SendingTab:
         contextMenu->addAction(verifyMessageAction);
+        break;
+    case ReceivingTab:
+        contextMenu->addAction(signMessageAction);
+        contextMenu->addAction(verifyAddressAction);
+        contextMenu->addAction(addressInfoAction);
+        break;
+    case LedgerTab:
+        contextMenu->addAction(verifyAddressAction);
+        contextMenu->addAction(addressInfoAction);
+        break;
+    }
 
     // Connect signals for context menu actions
     connect(copyAddressAction, SIGNAL(triggered()), this, SLOT(on_copyToClipboard_clicked()));
@@ -94,6 +146,8 @@ AddressBookPage::AddressBookPage(Mode modeIn, Tabs tabIn, QWidget *parent) :
     connect(showQRCodeAction, SIGNAL(triggered()), this, SLOT(on_showQRCode_clicked()));
     connect(signMessageAction, SIGNAL(triggered()), this, SLOT(on_signMessage_clicked()));
     connect(verifyMessageAction, SIGNAL(triggered()), this, SLOT(on_verifyMessage_clicked()));
+    connect(verifyAddressAction, SIGNAL(triggered()), this, SLOT(on_verifyAddress_clicked()));
+    connect(addressInfoAction, SIGNAL(triggered()), this, SLOT(on_addressInfo_clicked()));
 
     connect(ui->tableView, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
 
@@ -129,15 +183,27 @@ void AddressBookPage::setModel(AddressTableModel *modelIn)
         proxyModel->setFilterRole(AddressTableModel::TypeRole);
         proxyModel->setFilterFixedString(AddressTableModel::Send);
         break;
+    case LedgerTab:
+        // Ledger filter
+        proxyModel->setFilterRole(AddressTableModel::TypeRole);
+        proxyModel->setFilterFixedString(AddressTableModel::ReceiveLedger);
+        break;
     }
     ui->tableView->setModel(proxyModel);
     ui->tableView->sortByColumn(0, Qt::AscendingOrder);
 
+    // Hide unwanted columns
+    ui->tableView->hideColumn(AddressTableModel::IsLedger);
+    ui->tableView->hideColumn(AddressTableModel::LedgerAccount);
+    ui->tableView->hideColumn(AddressTableModel::LedgerIndex);
+
     // Set column widths
+    ui->tableView->horizontalHeader()->setSectionResizeMode(
+            AddressTableModel::Label, QHeaderView::Stretch);
     ui->tableView->horizontalHeader()->resizeSection(
             AddressTableModel::Address, 320);
     ui->tableView->horizontalHeader()->setSectionResizeMode(
-            AddressTableModel::Label, QHeaderView::Stretch);
+            AddressTableModel::LedgerPath, QHeaderView::ResizeToContents);
 
     connect(ui->tableView->selectionModel(), SIGNAL(selectionChanged(QItemSelection,QItemSelection)),
             this, SLOT(selectionChanged()));
@@ -212,6 +278,36 @@ void AddressBookPage::on_verifyMessage_clicked()
     emit verifyMessage(addr);
 }
 
+void AddressBookPage::on_verifyAddress_clicked()
+{
+    QTableView *table = ui->tableView;
+    QModelIndexList indexes = table->selectionModel()->selectedRows(AddressTableModel::Address);
+    QString ledgerAddress;
+    uint32_t ledgerAccount;
+    uint32_t ledgerIndex;
+
+    foreach (QModelIndex index, indexes)
+    {
+        ledgerAddress = index.data().toString();
+        ledgerAccount = index.sibling(index.row(), AddressTableModel::LedgerAccount).data().toInt();
+        ledgerIndex = index.sibling(index.row(), AddressTableModel::LedgerIndex).data().toInt();
+    }
+
+    QSharedPointer<VerifyLedgerAddressWorker> worker = QSharedPointer<VerifyLedgerAddressWorker>::create();
+    ledger_ui::LedgerMessageBox msgBox(this, worker, tr("Verifying address: <tt>%1</tt>").arg(ledgerAddress));
+    connect(worker.data(), SIGNAL(resultReady(QString)), this, SLOT(showVerifyAddressResult(QString)));
+    connect(worker.data(), SIGNAL(resultReady(QString)), &msgBox, SLOT(quit()));
+    QTimer::singleShot(0, worker.data(), [worker, ledgerAccount, ledgerIndex]() { worker->verify(ledgerAccount, ledgerIndex, worker); });
+    msgBox.exec();
+}
+
+void AddressBookPage::showVerifyAddressResult(QString errorMessage)
+{
+    if (!errorMessage.isEmpty()) {
+        QMessageBox::critical(this, windowTitle(), errorMessage, QMessageBox::Ok, QMessageBox::Ok);
+    }
+}
+
 void AddressBookPage::on_newAddressButton_clicked()
 {
     if(!model)
@@ -225,6 +321,53 @@ void AddressBookPage::on_newAddressButton_clicked()
     {
         newAddressToSelect = dlg.getAddress();
     }
+}
+
+void AddressBookPage::on_addressInfo_clicked()
+{
+    QTableView *table = ui->tableView;
+    QModelIndexList indexes = table->selectionModel()->selectedRows(AddressTableModel::Address);
+    QString ledgerAddress;
+    QString ledgerLabel;
+    uint32_t ledgerAccount;
+    uint32_t ledgerIndex;
+
+    foreach (QModelIndex index, indexes)
+    {
+        ledgerAddress = index.data().toString();
+        ledgerLabel = index.sibling(index.row(), AddressTableModel::Label).data().toString();
+        ledgerAccount = index.sibling(index.row(), AddressTableModel::LedgerAccount).data().toInt();
+        ledgerIndex = index.sibling(index.row(), AddressTableModel::LedgerIndex).data().toInt();
+    }
+
+    CKeyID keyID;
+    CLedgerKey ledgerChangeKey;
+    if (
+        !CBitcoinAddress(ledgerAddress.toStdString()).GetKeyID(keyID) ||
+        !pwalletMain->GetOtherLedgerKey(keyID, ledgerChangeKey, false)
+    ) {
+        QMessageBox::critical(this, windowTitle(), tr("An error occured while getting the Ledger address info."), QMessageBox::Ok, QMessageBox::Ok);
+    }
+    auto changeAddress = CBitcoinAddress(CTxDestination(ledgerChangeKey.vchPubKey.GetID()));
+    auto changeAddressStr = QString::fromStdString(changeAddress.ToString());
+
+    QMessageBox msgBox(this);
+    msgBox.setIcon(QMessageBox::Icon::Information);
+    msgBox.setWindowTitle(tr("Ledger Address Info"));
+    msgBox.setText(
+        "<table>" +
+        tr("<tr><td>Label: </td><td>%1</td></tr>").arg(ledgerLabel) +
+        tr("<tr><td>Account Index: </td><td>%1</td></tr>").arg(ledgerAccount) +
+        tr("<tr><td>Address Index: </td><td>%1</td></tr>").arg(ledgerIndex) +
+        tr("<tr><td>Address: </td><td><tt>%1</tt></td></tr>").arg(ledgerAddress) +
+        tr("<tr><td>Change Address: </td><td><tt>%1</tt></td></tr>").arg(changeAddressStr) +
+        "</table>"
+    );
+    // hack to increase QMessageBox width
+    QSpacerItem *horizontalSpacer = new QSpacerItem(550, 0, QSizePolicy::Minimum, QSizePolicy::Expanding);
+    QGridLayout *layout = (QGridLayout*)msgBox.layout();
+    layout->addItem(horizontalSpacer, layout->rowCount(), 0, 1, layout->columnCount());
+    msgBox.exec();
 }
 
 void AddressBookPage::on_deleteButton_clicked()
@@ -248,27 +391,47 @@ void AddressBookPage::selectionChanged()
 
     if(table->selectionModel()->hasSelection())
     {
+        QModelIndexList ledgerColumn = table->selectionModel()->selectedRows(AddressTableModel::IsLedger);
+        bool isLedger = ledgerColumn.size() && ledgerColumn[0].data().toBool();
         switch(tab)
         {
         case SendingTab:
             // In sending tab, allow deletion of selection
             ui->deleteButton->setEnabled(true);
-            ui->deleteButton->setVisible(true);
             deleteAction->setEnabled(true);
             ui->signMessage->setEnabled(false);
-            ui->signMessage->setVisible(false);
+            signMessageAction->setEnabled(false);
             ui->verifyMessage->setEnabled(true);
-            ui->verifyMessage->setVisible(true);
+            verifyMessageAction->setEnabled(true);
+            ui->verifyAddress->setEnabled(false);
+            verifyAddressAction->setEnabled(false);
+            ui->addressInfo->setEnabled(false);
+            addressInfoAction->setEnabled(false);
             break;
         case ReceivingTab:
             // Deleting receiving addresses, however, is not allowed
             ui->deleteButton->setEnabled(false);
-            ui->deleteButton->setVisible(false);
             deleteAction->setEnabled(false);
-            ui->signMessage->setEnabled(true);
-            ui->signMessage->setVisible(true);
+            ui->signMessage->setEnabled(!isLedger);
+            signMessageAction->setEnabled(!isLedger);
             ui->verifyMessage->setEnabled(false);
-            ui->verifyMessage->setVisible(false);
+            verifyMessageAction->setEnabled(false);
+            ui->verifyAddress->setEnabled(isLedger);
+            verifyAddressAction->setEnabled(isLedger);
+            ui->addressInfo->setEnabled(isLedger);
+            addressInfoAction->setEnabled(isLedger);
+            break;
+        case LedgerTab:
+            ui->deleteButton->setEnabled(false);
+            deleteAction->setEnabled(false);
+            ui->signMessage->setEnabled(false);
+            signMessageAction->setEnabled(false);
+            ui->verifyMessage->setEnabled(false);
+            verifyMessageAction->setEnabled(false);
+            ui->verifyAddress->setEnabled(isLedger);
+            verifyAddressAction->setEnabled(isLedger);
+            ui->addressInfo->setEnabled(isLedger);
+            addressInfoAction->setEnabled(isLedger);
             break;
         }
         ui->copyToClipboard->setEnabled(true);
@@ -281,6 +444,8 @@ void AddressBookPage::selectionChanged()
         ui->copyToClipboard->setEnabled(false);
         ui->signMessage->setEnabled(false);
         ui->verifyMessage->setEnabled(false);
+        ui->verifyAddress->setEnabled(false);
+        ui->addressInfo->setEnabled(false);
     }
 }
 
@@ -294,15 +459,16 @@ void AddressBookPage::done(int retval)
         return;
 
     // Figure out which address was selected, and return it
-    QModelIndexList indexes = table->selectionModel()->selectedRows(AddressTableModel::Address);
+    QModelIndexList addressIndexes = table->selectionModel()->selectedRows(AddressTableModel::Address);
+    QModelIndexList labelIndexes = table->selectionModel()->selectedRows(AddressTableModel::Label);
 
-    foreach (QModelIndex index, indexes)
+    if (!addressIndexes.isEmpty())
     {
-        QVariant address = table->model()->data(index);
-        returnValue = address.toString();
+        returnAddress = addressIndexes.at(0).data().toString();
+        returnLabel = labelIndexes.at(0).data().toString();
     }
 
-    if(returnValue.isEmpty())
+    if(returnAddress.isEmpty())
     {
         // If no address entry selected, return rejected
         retval = Rejected;

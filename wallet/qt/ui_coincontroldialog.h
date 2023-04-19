@@ -60,6 +60,7 @@ public:
     QPushButton *pushButtonSelectAll;
     QRadioButton *radioTreeMode;
     QRadioButton *radioListMode;
+    QLabel *labelFiltering;
     QSpacerItem *horizontalSpacer;
     CoinControlTreeWidget *treeWidget;
     QDialogButtonBox *buttonBox;
@@ -68,7 +69,7 @@ public:
     {
         if (CoinControlDialog->objectName().isEmpty())
             CoinControlDialog->setObjectName(QStringLiteral("CoinControlDialog"));
-        CoinControlDialog->resize(1150, 500);
+        CoinControlDialog->resize(1300, 500);
         verticalLayout = new QVBoxLayout(CoinControlDialog);
         verticalLayout->setObjectName(QStringLiteral("verticalLayout"));
         horizontalLayoutTop = new QHBoxLayout();
@@ -280,6 +281,14 @@ public:
 
         horizontalLayoutPanel->addWidget(radioListMode);
 
+        labelFiltering = new QLabel(horizontalLayoutWidget);
+        labelFiltering->setObjectName(QStringLiteral("labelFiltering"));
+        sizePolicy.setHeightForWidth(labelFiltering->sizePolicy().hasHeightForWidth());
+        labelFiltering->setSizePolicy(sizePolicy);
+        labelFiltering->setStyleSheet("color:#808080");
+
+        horizontalLayoutPanel->addWidget(labelFiltering);
+
         horizontalSpacer = new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
 
         horizontalLayoutPanel->addItem(horizontalSpacer);
@@ -289,14 +298,14 @@ public:
 
         treeWidget = new CoinControlTreeWidget(CoinControlDialog);
         treeWidget->headerItem()->setText(0, QString());
-        treeWidget->headerItem()->setText(8, QString());
         treeWidget->headerItem()->setText(9, QString());
         treeWidget->headerItem()->setText(10, QString());
         treeWidget->headerItem()->setText(11, QString());
+        treeWidget->headerItem()->setText(12, QString());
         treeWidget->setObjectName(QStringLiteral("treeWidget"));
         treeWidget->setContextMenuPolicy(Qt::CustomContextMenu);
         treeWidget->setSortingEnabled(false);
-        treeWidget->setColumnCount(12);
+        treeWidget->setColumnCount(13);
         treeWidget->header()->setProperty("showSortIndicator", QVariant(true));
         treeWidget->header()->setStretchLastSection(false);
 
@@ -332,17 +341,19 @@ public:
         pushButtonSelectAll->setText(QApplication::translate("CoinControlDialog", "(un)select all", Q_NULLPTR));
         radioTreeMode->setText(QApplication::translate("CoinControlDialog", "Tree mode", Q_NULLPTR));
         radioListMode->setText(QApplication::translate("CoinControlDialog", "List mode", Q_NULLPTR));
+        labelFiltering->setText(QApplication::translate("CoinControlDialog", "(only non-Ledger addresses are shown)", Q_NULLPTR));
         QTreeWidgetItem *___qtreewidgetitem = treeWidget->headerItem();
-        ___qtreewidgetitem->setText(7, QApplication::translate("CoinControlDialog", "Delegated", Q_NULLPTR));
-        ___qtreewidgetitem->setText(6, QApplication::translate("CoinControlDialog", "Priority", Q_NULLPTR));
-        ___qtreewidgetitem->setText(5, QApplication::translate("CoinControlDialog", "Confirmations", Q_NULLPTR));
-        ___qtreewidgetitem->setText(4, QApplication::translate("CoinControlDialog", "Date", Q_NULLPTR));
+        ___qtreewidgetitem->setText(8, QApplication::translate("CoinControlDialog", "Delegated", Q_NULLPTR));
+        ___qtreewidgetitem->setText(7, QApplication::translate("CoinControlDialog", "Priority", Q_NULLPTR));
+        ___qtreewidgetitem->setText(6, QApplication::translate("CoinControlDialog", "Confirmations", Q_NULLPTR));
+#ifndef QT_NO_TOOLTIP
+        ___qtreewidgetitem->setToolTip(6, QApplication::translate("CoinControlDialog", "Confirmed", Q_NULLPTR));
+#endif // QT_NO_TOOLTIP
+        ___qtreewidgetitem->setText(5, QApplication::translate("CoinControlDialog", "Date", Q_NULLPTR));
+        ___qtreewidgetitem->setText(4, QApplication::translate("CoinControlDialog", "Ledger Path", Q_NULLPTR));
         ___qtreewidgetitem->setText(3, QApplication::translate("CoinControlDialog", "Address/Token ID", Q_NULLPTR));
         ___qtreewidgetitem->setText(2, QApplication::translate("CoinControlDialog", "Label/Token Symbol", Q_NULLPTR));
         ___qtreewidgetitem->setText(1, QApplication::translate("CoinControlDialog", "Amount", Q_NULLPTR));
-#ifndef QT_NO_TOOLTIP
-        ___qtreewidgetitem->setToolTip(5, QApplication::translate("CoinControlDialog", "Confirmed", Q_NULLPTR));
-#endif // QT_NO_TOOLTIP
     } // retranslateUi
 
 };

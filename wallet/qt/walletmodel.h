@@ -119,7 +119,8 @@ public:
     SendCoinsReturn sendCoins(QList<SendCoinsRecipient>        recipients,
                               boost::shared_ptr<NTP1Wallet>    ntp1wallet,
                               const RawNTP1MetadataBeforeSend& ntp1metadata, bool fSpendDelegated,
-                              const CCoinControl* coinControl = nullptr);
+                              const CCoinControl* coinControl   = nullptr,
+                              const std::string& strFromAccount = "", bool fLedgerTx = false);
 
     // Wallet encryption
     bool setWalletEncrypted(bool encrypted, const SecureString& passphrase);
@@ -157,6 +158,7 @@ public:
     UnlockContext requestUnlock();
 
     bool getPubKey(const CKeyID& address, CPubKey& vchPubKeyOut) const;
+    bool getLedgerKey(const CKeyID& address, CLedgerKey& ledgerKeyOut) const;
     void getOutputs(const std::vector<COutPoint>& vOutpoints, std::vector<COutput>& vOutputs);
     void listCoins(std::map<QString, std::vector<COutput>>& mapCoins) const;
     bool isLockedCoin(uint256 hash, unsigned int n) const;
@@ -214,7 +216,7 @@ public slots:
     /**/
     void updateNumTransactions();
     /* New, updated or removed address book entry */
-    void updateAddressBook(const QString& address, const QString& label, bool isMine,
+    void updateAddressBook(const QString& address, const QString& label, uint isMine,
                            const QString& purpose, int status);
     /* Current, immature or unconfirmed balance might have changed - emit 'balanceChanged' if so */
     void pollBalanceChanged();

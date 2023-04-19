@@ -55,8 +55,6 @@ void NewStakeDelegationDialog::createWidgets()
 
     timedMessageBox = new MessageBoxWithTimer();
 
-    coinControlDialog = new CoinControlDialog(this);
-
     createDelegationButton->setAutoDefault(false);
     cancelButton->setAutoDefault(false);
     clearButton->setAutoDefault(false);
@@ -351,7 +349,7 @@ void NewStakeDelegationDialog::slot_createColdStake()
 
 void NewStakeDelegationDialog::slot_coinControlButtonClicked()
 {
-    CoinControlDialog dlg;
+    CoinControlDialog dlg(this, false, QString());
     dlg.setModel(walletModel);
     dlg.exec(); // this is synchornous, so it wont' return until finished
 }

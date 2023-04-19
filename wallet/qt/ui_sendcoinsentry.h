@@ -40,7 +40,7 @@ public:
     QToolButton*        pasteButton;
     QToolButton*        deleteButton;
 
-    void setupUi(QFrame* SendCoinsEntry)
+    void setupUi(QFrame* SendCoinsEntry, bool enableNTP1Tokens)
     {
         if (SendCoinsEntry->objectName().isEmpty())
             SendCoinsEntry->setObjectName(QStringLiteral("SendCoinsEntry"));
@@ -65,7 +65,7 @@ public:
 
         gridLayout->addWidget(label_2, 3, 0, 1, 1);
 
-        payAmount = new BitcoinAmountField(true, SendCoinsEntry);
+        payAmount = new BitcoinAmountField(enableNTP1Tokens, SendCoinsEntry);
         payAmount->setObjectName(QStringLiteral("payAmount"));
 
         gridLayout->addWidget(payAmount, 5, 1, 1, 1);

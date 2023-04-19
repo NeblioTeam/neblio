@@ -53,7 +53,6 @@ void IssueNewNTP1TokenDialog::createWidgets()
     paymentSeparator->setFrameShape(QFrame::HLine);
     paymentSeparator->setFrameShadow(QFrame::Sunken);
 
-    coinControlDialog = new CoinControlDialog(this);
     coinControlButton = new QPushButton("Coin control (Advanced)", this);
 
     iconUrlLabel->setText(
@@ -473,7 +472,7 @@ void IssueNewNTP1TokenDialog::slot_iconUrlChanged(const QString& url)
 
 void IssueNewNTP1TokenDialog::slot_coinControlButtonClicked()
 {
-    CoinControlDialog dlg;
+    CoinControlDialog dlg(this, false, QString());
     dlg.setModel(walletModel);
     dlg.exec(); // this is synchornous, so it wont' return until finished
 }

@@ -74,6 +74,7 @@ target_link_libraries(neblio-tests
     ${CURL_LIBS}
     ${OPENSSL_LIBS}
     ${ZLIB_LIBRARIES}
+    ${HIDAPI_LIBRARIES}
     )
 
 set_target_properties(neblio-tests PROPERTIES COMPILE_FLAGS -Wno-unused-function)

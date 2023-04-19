@@ -62,6 +62,8 @@ public:
 
     bool WriteKey(const CPubKey& vchPubKey, const CPrivKey& vchPrivKey, const CKeyMetadata& keyMeta);
 
+    bool WriteLedgerKey(const CLedgerKey& ledgerKey);
+
     bool WriteCryptedKey(const CPubKey& vchPubKey, const std::vector<unsigned char>& vchCryptedSecret,
                          const CKeyMetadata& keyMeta);
 

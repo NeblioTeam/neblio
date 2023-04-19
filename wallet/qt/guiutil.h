@@ -24,11 +24,13 @@ namespace GUIUtil
     QString dateTimeStr(qint64 nTime);
 
     // Render Bitcoin addresses in monospace font
-    QFont bitcoinAddressFont();
+    QFont monospaceFont();
 
     // Set up widgets for address and amounts
     void setupAddressWidget(QLineEdit *widget, QWidget *parent);
     void setupAmountWidget(QLineEdit *widget, QWidget *parent);
+
+    void setupIntWidget(QLineEdit *widget, QWidget *parent, int bottom, int top);
 
     // Parse "neblio:" URI into recipient object, return true on successful parsing
     // See Bitcoin URI definition discussion here: https://bitcointalk.org/index.php?topic=33490.0

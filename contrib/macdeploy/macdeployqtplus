@@ -280,6 +280,16 @@ def copyFramework(framework, path, verbose):
     if not permissions.st_mode & stat.S_IWRITE:
       os.chmod(toPath, permissions.st_mode | stat.S_IWRITE)
 
+    # libicu linking hack - both version 67 and 71 binaries are needed to run on mac.
+    # A proper solution would probably be to update to Qt6. Another part of the hack
+    # is in ${project_root}/ci_scripts/test_osx-gui_wallet.py.
+    if "libicu" in toPath and ".67.dylib" in toPath:
+        libicu71path = toPath.replace(".67.dylib", ".71.dylib")
+        shutil.copy2(fromPath, libicu71path)
+        permissions = os.stat(libicu71path)
+        if not permissions.st_mode & stat.S_IWRITE:
+            os.chmod(libicu71path, permissions.st_mode | stat.S_IWRITE)
+
     if not framework.isDylib(): # Copy resources for real frameworks
         fromResourcesDir = framework.sourceResourcesDirectory
         if os.path.exists(fromResourcesDir):

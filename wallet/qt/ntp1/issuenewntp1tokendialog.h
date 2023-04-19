@@ -18,7 +18,6 @@
 
 class IssueNewNTP1TokenDialog;
 class CCoinControl;
-class CoinControlDialog;
 class WalletModel;
 
 class NTP1TokenSymbolValidator : public QValidator
@@ -73,8 +72,7 @@ class IssueNewNTP1TokenDialog : public QDialog
 
     NTP1TokenSymbolValidator* tokenSymbolValidator;
 
-    CoinControlDialog* coinControlDialog;
-    QPushButton*       coinControlButton;
+    QPushButton* coinControlButton;
 
     WalletModel* walletModel = nullptr;
 

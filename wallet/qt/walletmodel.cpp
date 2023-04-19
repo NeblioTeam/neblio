@@ -194,11 +194,11 @@ void WalletModel::updateNumTransactions()
     }
 }
 
-void WalletModel::updateAddressBook(const QString& address, const QString& label, bool isMine,
+void WalletModel::updateAddressBook(const QString& address, const QString& label, uint isMine,
                                     const QString& purpose, int status)
 {
     if (addressTableModel)
-        addressTableModel->updateEntry(address, label, isMine, purpose, status);
+        addressTableModel->updateEntry(address, label, (isminetype)isMine, purpose, status);
 }
 
 bool WalletModel::validateAddress(const QString& address)
@@ -217,7 +217,8 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
                                                     boost::shared_ptr<NTP1Wallet>    ntp1wallet,
                                                     const RawNTP1MetadataBeforeSend& ntp1metadata,
                                                     bool                             fSpendDelegated,
-                                                    const CCoinControl*              coinControl)
+                                                    const CCoinControl*              coinControl,
+                                                    const std::string& strFromAccount, bool fLedgerTx)
 {
     qint64  total = 0;
     QString hex;
@@ -257,7 +258,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
 
     int64_t              nBalance = 0;
     std::vector<COutput> vCoins;
-    wallet->AvailableCoins(txdb, vCoins, true, coinControl);
+    wallet->AvailableCoins(txdb, vCoins, true, false, false, coinControl, strFromAccount, fLedgerTx);
 
     for (const COutput& out : vCoins) {
         nBalance += out.tx->vout[out.i].nValue;
@@ -313,7 +314,10 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
             }
         }
 
-        CWalletTx   wtx;
+        CWalletTx wtx;
+        wtx.strFromAccount = strFromAccount;
+        wtx.fLedgerTx      = fLedgerTx;
+
         CReserveKey keyChange(wallet);
         int64_t     nFeeRequired = 0;
         std::string errorMsg;
@@ -439,14 +443,14 @@ static void NotifyKeyStoreStatusChanged(WalletModel* walletmodel, CCryptoKeyStor
 
 static void NotifyAddressBookChanged(WalletModel*          walletmodel, CWallet* /*wallet*/,
                                      const CTxDestination& address, const std::string& label,
-                                     bool isMine, const std::string& purpose, ChangeType status)
+                                     uint isMine, const std::string& purpose, ChangeType status)
 {
     NLog.write(b_sev::info, "NotifyAddressBookChanged {} {} isMine={} purpose={} status={}",
                CBitcoinAddress(address).ToString(), label.c_str(), isMine, purpose, status);
     QMetaObject::invokeMethod(
         walletmodel, "updateAddressBook", Qt::QueuedConnection,
         Q_ARG(QString, QString::fromStdString(CBitcoinAddress(address).ToString())),
-        Q_ARG(QString, QString::fromStdString(label)), Q_ARG(bool, isMine),
+        Q_ARG(QString, QString::fromStdString(label)), Q_ARG(uint, isMine),
         Q_ARG(QString, QString::fromStdString(purpose)), Q_ARG(int, status));
 }
 
@@ -523,6 +527,11 @@ bool WalletModel::getPubKey(const CKeyID& address, CPubKey& vchPubKeyOut) const
     return wallet->GetPubKey(address, vchPubKeyOut);
 }
 
+bool WalletModel::getLedgerKey(const CKeyID& address, CLedgerKey& ledgerKeyOut) const
+{
+    return wallet->GetLedgerKey(address, ledgerKeyOut);
+}
+
 // returns a list of COutputs from COutPoints
 void WalletModel::getOutputs(const std::vector<COutPoint>& vOutpoints, std::vector<COutput>& vOutputs)
 {
@@ -551,7 +560,7 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput>>& mapCoins) c
     const uint256 bestBlockHash = txdb.GetBestBlockHash();
 
     std::vector<COutput> vCoins;
-    wallet->AvailableCoins(txdb, vCoins);
+    wallet->AvailableCoins(txdb, vCoins, true, false, true, nullptr, "", true);
 
     LOCK2(cs_main, wallet->cs_wallet); // ListLockedCoins, mapWallet
     std::vector<COutPoint> vLockedCoins;
@@ -572,7 +581,7 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput>>& mapCoins) c
     for (const COutput& out : vCoins) {
         COutput cout = out;
 
-        while (wallet->IsChange(txdb, cout.tx->vout[cout.i]) && cout.tx->vin.size() > 0 &&
+        while (wallet->IsChange(txdb, *cout.tx, cout.tx->vout[cout.i]) && cout.tx->vin.size() > 0 &&
                IsMineCheck(wallet->IsMine(cout.tx->vin[0]), isminetype::ISMINE_SPENDABLE_ALL)) {
             if (!wallet->mapWallet.count(cout.tx->vin[0].prevout.hash))
                 break;

@@ -6,7 +6,6 @@
 #include "init.h"
 #include "walletmodel.h"
 
-#include "addressbookpage.h"
 #include "askpassphrasedialog.h"
 #include "bitcoinunits.h"
 #include "guiutil.h"
@@ -25,15 +24,35 @@
 #include "ntp1/ntp1tokenlistmodel.h"
 #include "ntp1/ntp1tools.h"
 
+#include "ledger/bip32.h"
+#include "ledger_ui/ledgermessagebox.h"
+
+void LedgerSignTxWorker::signTx(WalletModel* model, QList<SendCoinsRecipient> recipients,
+                                boost::shared_ptr<NTP1Wallet>    ntp1wallet,
+                                const RawNTP1MetadataBeforeSend& ntp1metadata, bool fSpendDelegated,
+                                const CCoinControl* coinControl, const std::string& strFromAccount,
+                                QSharedPointer<LedgerSignTxWorker> workerPtr)
+{
+    auto sendStatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata, fSpendDelegated,
+                                       coinControl, strFromAccount, true);
+
+    emit resultReady(sendStatus);
+    workerPtr.reset();
+}
+
 SendCoinsDialog::SendCoinsDialog(QWidget* parent)
     : QDialog(parent), ui(new Ui::SendCoinsDialog), model(0)
 {
+    qRegisterMetaType<WalletModel::SendCoinsReturn>("WalletModel::SendCoinsReturn");
+
     ui->setupUi(this);
 
 #ifdef Q_OS_MAC // Icons on push buttons are very uncommon on Mac
     ui->addButton->setIcon(QIcon());
+    ui->editMetadataButton->setIcon(QIcon());
     ui->clearButton->setIcon(QIcon());
     ui->sendButton->setIcon(QIcon());
+    ui->ledgerAddressBookButton->setIcon(QIcon());
 #endif
 
 #if QT_VERSION >= 0x040700
@@ -49,10 +68,10 @@ SendCoinsDialog::SendCoinsDialog(QWidget* parent)
     connect(ui->addButton, &QPushButton::clicked, this, &SendCoinsDialog::addEntry);
     connect(ui->editMetadataButton, &QPushButton::clicked, this,
             &SendCoinsDialog::showEditMetadataDialog);
-    connect(ui->clearButton, &QPushButton::clicked, this, &SendCoinsDialog::clear);
+    connect(ui->clearButton, &QPushButton::clicked, this, &SendCoinsDialog::clearEntries);
 
     // Coin Control
-    ui->lineEditCoinControlChange->setFont(GUIUtil::bitcoinAddressFont());
+    ui->lineEditCoinControlChange->setFont(GUIUtil::monospaceFont());
     connect(ui->pushButtonCoinControl, SIGNAL(clicked()), this, SLOT(coinControlButtonClicked()));
     connect(ui->checkBoxCoinControlChange, SIGNAL(stateChanged(int)), this,
             SLOT(coinControlChangeChecked(int)));
@@ -86,6 +105,10 @@ SendCoinsDialog::SendCoinsDialog(QWidget* parent)
     ui->labelCoinControlChange->addAction(clipboardChangeAction);
 
     fNewRecipientAllowed = true;
+
+    // Ledger submenu
+    ui->ledgerWidget->setVisible(false);
+    GUIUtil::setupAddressWidget(ui->ledgerPayFromAddressEdit, this);
 }
 
 void SendCoinsDialog::setModel(WalletModel* modelIn)
@@ -119,6 +142,49 @@ void SendCoinsDialog::setModel(WalletModel* modelIn)
 }
 
 SendCoinsDialog::~SendCoinsDialog() { delete ui; }
+
+bool SendCoinsDialog::isAnyNTP1TokenSelected() const
+{
+    for (int i = 0; i < ui->entries->count(); ++i) {
+        SendCoinsEntry* entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+        if (entry && entry->isNTP1TokenSelected()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void SendCoinsDialog::on_ledgerCheckBox_toggled(bool checked)
+{
+    if (checked) {
+        ui->ledgerWidget->setVisible(true);
+        ui->editMetadataButton->setDisabled(true);
+        ui->allowSpendingDelegatedCoins->setDisabled(true);
+        ui->allowSpendingDelegatedCoins->setChecked(false);
+        ui->sendButton->setText(tr("Sign and s&end"));
+    } else {
+        ui->ledgerWidget->setVisible(false);
+        ui->editMetadataButton->setDisabled(false);
+        ui->allowSpendingDelegatedCoins->setDisabled(false);
+        ui->sendButton->setText(tr("S&end"));
+    }
+    // Ledger does not support NTP1 tokens
+    // entries need to be reset to set correct enableNTP1Tokens value
+    clearEntries();
+}
+
+void SendCoinsDialog::on_ledgerAddressBookButton_clicked()
+{
+    if (!model)
+        return;
+    AddressBookPage dlg(AddressBookPage::ForSending, AddressBookPage::LedgerTab, this);
+    dlg.setModel(model->getAddressTableModel());
+    if (dlg.exec()) {
+        ui->ledgerPayFromAddressEdit->setText(dlg.getReturnAddress());
+        ui->ledgerPayFromNameEdit->setText(dlg.getReturnLabel());
+        ui->ledgerPayFromNameEdit->setStyleSheet("");
+    }
+}
 
 void SendCoinsDialog::on_sendButton_clicked()
 {
@@ -226,15 +292,38 @@ void SendCoinsDialog::on_sendButton_clicked()
         return;
     }
 
-    WalletModel::SendCoinsReturn sendstatus;
+    CCoinControl* coinControl = nullptr;
+    if (model->getOptionsModel() && model->getOptionsModel()->getCoinControlFeatures())
+        coinControl = CoinControlDialog::coinControl;
 
-    if (!model->getOptionsModel() || !model->getOptionsModel()->getCoinControlFeatures())
-        sendstatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata, fSpendDelegatedOutputs);
-    else
-        sendstatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata, fSpendDelegatedOutputs,
-                                      CoinControlDialog::coinControl);
+    auto fLedgerTx = ui->ledgerCheckBox->isChecked();
 
-    switch (sendstatus.status) {
+    if (fLedgerTx && ui->ledgerPayFromNameEdit->text().isEmpty()) {
+        ui->ledgerPayFromNameEdit->setStyleSheet(STYLE_INVALID);
+        return;
+    }
+
+    std::string strFromAccount = "";
+    if (fLedgerTx)
+        strFromAccount = ui->ledgerPayFromNameEdit->text().toStdString();
+
+    if (fLedgerTx) {
+        QSharedPointer<LedgerSignTxWorker> worker = QSharedPointer<LedgerSignTxWorker>::create();
+        ledger_ui::LedgerMessageBox        msgBox(this, worker);
+        connect(worker.data(), SIGNAL(resultReady(WalletModel::SendCoinsReturn)), this,
+                SLOT(setSendStatus(WalletModel::SendCoinsReturn)));
+        connect(worker.data(), SIGNAL(resultReady(WalletModel::SendCoinsReturn)), &msgBox, SLOT(quit()));
+        QTimer::singleShot(0, worker.data(), [&]() {
+            worker->signTx(model, recipients, ntp1wallet, ntp1metadata, fSpendDelegatedOutputs,
+                           coinControl, strFromAccount, worker);
+        });
+        msgBox.exec();
+    } else {
+        sendStatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata, fSpendDelegatedOutputs,
+                                      coinControl, strFromAccount, fLedgerTx);
+    }
+
+    switch (sendStatus.status) {
     case WalletModel::InvalidAddress:
         QMessageBox::warning(this, tr("Send Coins"),
                              tr("The recipient address is not valid, please recheck."), QMessageBox::Ok,
@@ -252,7 +341,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         QMessageBox::warning(
             this, tr("Send Coins"),
             tr("The total exceeds your balance when the %1 transaction fee is included.")
-                .arg(BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, sendstatus.fee)),
+                .arg(BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, sendStatus.fee)),
             QMessageBox::Ok, QMessageBox::Ok);
         break;
     case WalletModel::DuplicateAddress:
@@ -263,7 +352,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         break;
     case WalletModel::TransactionCreationFailed:
         QMessageBox::warning(this, tr("Send Coins"),
-                             tr("Error: Transaction creation failed. ") + sendstatus.msg,
+                             tr("Error: Transaction creation failed. ") + sendStatus.msg,
                              QMessageBox::Ok, QMessageBox::Ok);
         break;
     case WalletModel::TransactionCommitFailed:
@@ -283,7 +372,7 @@ void SendCoinsDialog::on_sendButton_clicked()
             "You should NOT send NEBL from these addresses or the NTP1 tokens could be permanently "
             "burned. "
             "This address contains NTP1 tokens: " +
-                sendstatus.address +
+                sendStatus.address +
                 "\n\n"
                 "You have the following options:\n"
                 "1. Use coin control and choose addresses that do not contain NTP1 tokens.\n"
@@ -296,7 +385,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         QMessageBox::warning(
             this, tr("Send Coins - NTP1 tokens problem"),
             "Error: Unable to check whether your addresses contain NTP1 tokens (for address: " +
-                sendstatus.address +
+                sendStatus.address +
                 ")\n"
                 "Sending NEBL from an address that contains NTP1 tokens could result in those tokens "
                 "being permanently burned. "
@@ -346,7 +435,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     case WalletModel::NTP1TokenCalculationsFailed:
         QMessageBox::warning(this, tr("Send Coins - NTP1 calculations failed"),
                              "Unable to calculate reserve tokens to be spent in this transaction. " +
-                                 sendstatus.msg,
+                                 sendStatus.msg,
                              QMessageBox::Ok, QMessageBox::Ok);
         break;
     case WalletModel::OK:
@@ -359,7 +448,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     fNewRecipientAllowed = true;
 }
 
-void SendCoinsDialog::clear()
+void SendCoinsDialog::clearEntries()
 {
     // Remove entries until only one left
     while (ui->entries->count()) {
@@ -368,24 +457,27 @@ void SendCoinsDialog::clear()
     addEntry();
 
     updateRemoveEnabled();
+    tokenSelectionChanged();
 
     ui->sendButton->setDefault(true);
 }
 
-void SendCoinsDialog::reject() { clear(); }
+void SendCoinsDialog::reject() { clearEntries(); }
 
-void SendCoinsDialog::accept() { clear(); }
+void SendCoinsDialog::accept() { clearEntries(); }
 
 SendCoinsEntry* SendCoinsDialog::addEntry()
 {
     // metadata can be fixed if more recipients are added, so remove red color from the button
     ui->editMetadataButton->setStyleSheet("");
 
-    SendCoinsEntry* entry = new SendCoinsEntry(this);
+    bool            enableNTP1Tokens = !ui->ledgerCheckBox->isChecked();
+    SendCoinsEntry* entry            = new SendCoinsEntry(this, enableNTP1Tokens);
     entry->setModel(model);
     ui->entries->addWidget(entry);
     connect(entry, SIGNAL(removeEntry(SendCoinsEntry*)), this, SLOT(removeEntry(SendCoinsEntry*)));
     connect(entry, SIGNAL(payAmountChanged()), this, SLOT(coinControlUpdateLabels()));
+    connect(entry, SIGNAL(payAmountChanged()), this, SLOT(tokenSelectionChanged()));
 
     updateRemoveEnabled();
 
@@ -418,6 +510,7 @@ void SendCoinsDialog::removeEntry(SendCoinsEntry* entry)
 {
     delete entry;
     updateRemoveEnabled();
+    tokenSelectionChanged();
 }
 
 QWidget* SendCoinsDialog::setupTabChain(QWidget* prev)
@@ -581,7 +674,20 @@ void SendCoinsDialog::coinControlFeatureChanged(bool checked)
 // Coin Control: button inputs -> show actual coin control dialog
 void SendCoinsDialog::coinControlButtonClicked()
 {
-    CoinControlDialog dlg;
+    bool    fLedgerTx = false;
+    QString fromAccount;
+    if (ui->ledgerCheckBox->isChecked()) {
+        if (ui->ledgerPayFromNameEdit->text().isEmpty()) {
+            QMessageBox::warning(
+                this, windowTitle(),
+                "You must specify the Ledger account you want to pay from before selecting the coins.");
+            ui->ledgerPayFromNameEdit->setStyleSheet(STYLE_INVALID);
+            return;
+        }
+        fLedgerTx   = true;
+        fromAccount = ui->ledgerPayFromNameEdit->text();
+    }
+    CoinControlDialog dlg(this, fLedgerTx, fromAccount);
     dlg.setModel(model);
     dlg.exec();
     coinControlUpdateLabels();
@@ -620,12 +726,18 @@ void SendCoinsDialog::coinControlChangeEdited(const QString& text)
             if (!associatedLabel.isEmpty())
                 ui->labelCoinControlChangeLabel->setText(associatedLabel);
             else {
-                CPubKey pubkey;
-                CKeyID  keyid;
+                CPubKey    pubkey;
+                CLedgerKey ledgerKey;
+                CKeyID     keyid;
                 CBitcoinAddress(text.toStdString()).GetKeyID(keyid);
                 if (model->getPubKey(keyid, pubkey))
                     ui->labelCoinControlChangeLabel->setText(tr("(no label)"));
-                else {
+                else if (model->getLedgerKey(keyid, ledgerKey)) {
+                    ui->labelCoinControlChangeLabel->setText(QString::fromStdString(
+                        "Ledger change address: " +
+                        ledger::Bip32Path(ledgerKey.account, ledgerKey.isChange, ledgerKey.index)
+                            .ToString()));
+                } else {
                     ui->labelCoinControlChangeLabel->setStyleSheet("QLabel{color:red;}");
                     ui->labelCoinControlChangeLabel->setText(tr("WARNING: unknown change address"));
                 }
@@ -661,4 +773,9 @@ void SendCoinsDialog::coinControlUpdateLabels()
         ui->widgetCoinControl->hide();
         ui->labelCoinControlInsuffFunds->hide();
     }
+}
+
+void SendCoinsDialog::tokenSelectionChanged()
+{
+    ui->ledgerTokenWarningLabel->setVisible(isAnyNTP1TokenSelected());
 }

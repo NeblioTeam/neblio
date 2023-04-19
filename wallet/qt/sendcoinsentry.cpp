@@ -10,9 +10,10 @@
 #include <QApplication>
 #include <QClipboard>
 
-SendCoinsEntry::SendCoinsEntry(QWidget* parent) : QFrame(parent), ui(new Ui::SendCoinsEntry), model(0)
+SendCoinsEntry::SendCoinsEntry(QWidget* parent, bool enableNTP1Tokens)
+    : QFrame(parent), ui(new Ui::SendCoinsEntry), model(0)
 {
-    ui->setupUi(this);
+    ui->setupUi(this, enableNTP1Tokens);
 
 #ifdef Q_OS_MAC
     ui->payToLayout->setSpacing(4);
@@ -47,7 +48,7 @@ void SendCoinsEntry::on_addressBookButton_clicked()
     AddressBookPage dlg(AddressBookPage::ForSending, AddressBookPage::SendingTab, this);
     dlg.setModel(model->getAddressTableModel());
     if (dlg.exec()) {
-        ui->payTo->setText(dlg.getReturnValue());
+        ui->payTo->setText(dlg.getReturnAddress());
         ui->payAmount->setFocus();
     }
 }
@@ -71,6 +72,7 @@ void SendCoinsEntry::setModel(WalletModel* modelIn)
                 SLOT(updateDisplayUnit()));
 
     connect(ui->payAmount, SIGNAL(textChanged()), this, SIGNAL(payAmountChanged()));
+    connect(ui->payAmount, SIGNAL(tokenChanged()), this, SIGNAL(payAmountChanged()));
 
     clear();
 }
@@ -125,6 +127,8 @@ SendCoinsRecipient SendCoinsEntry::getValue()
 
     return rv;
 }
+
+bool SendCoinsEntry::isNTP1TokenSelected() const { return ui->payAmount->isNTP1TokenSelected(); }
 
 QWidget* SendCoinsEntry::setupTabChain(QWidget* prev)
 {

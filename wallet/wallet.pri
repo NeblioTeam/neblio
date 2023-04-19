@@ -1,6 +1,17 @@
 # Input
 DEPENDPATH += . json qt
 HEADERS += qt/bitcoingui.h \
+    ledger/bip32.h \
+    ledger/bytes.h \
+    ledger/comm.h \
+    ledger/error.h \
+    ledger/hid.h \
+    ledger/ledger.h \
+    ledger/transport.h \
+    ledger/tx.h \
+    ledger/utils.h \
+    qt/ledger_ui/ledgermessagebox.h \
+    qt/ledger_ui/ledgeruiutils.h \
     qt/transactiontablemodel.h \
     qt/addresstablemodel.h \
     qt/optionsdialog.h \
@@ -176,7 +187,8 @@ HEADERS += qt/bitcoingui.h \
     blockreject.h                    \
     blockmetadata.h                  \
     blockindexlrucache.h             \
-    proposal.h
+    proposal.h                       \
+    ledgerBridge.h
 
 
 
@@ -199,6 +211,15 @@ HEADERS +=                 \
 
 
 SOURCES += qt/bitcoin.cpp \
+    ledger/bip32.cpp \
+    ledger/error.cpp \
+    ledger/hid.cpp \
+    ledger/ledger.cpp \
+    ledger/transport.cpp \
+    ledger/tx.cpp \
+    ledger/utils.cpp \
+    qt/ledger_ui/ledgermessagebox.cpp \
+    qt/ledger_ui/ledgeruiutils.cpp \
     qt/bitcoingui.cpp \
     qt/transactiontablemodel.cpp \
     qt/addresstablemodel.cpp \
@@ -349,7 +370,8 @@ SOURCES += qt/bitcoin.cpp \
     blockreject.cpp                     \
     blockmetadata.cpp                   \
     blockindexlrucache.cpp              \
-    proposal.cpp
+    proposal.cpp                        \
+    ledgerBridge.cpp
 
 
 

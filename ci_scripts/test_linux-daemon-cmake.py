@@ -14,7 +14,7 @@ deploy_dir = os.path.join(os.environ['BUILD_DIR'],'deploy', '')
 packages_to_install = \
 [
 "ccache",
-"qt5-default",
+"qtbase5-dev",
 "qt5-qmake",
 "qtbase5-dev-tools",
 "qttools5-dev-tools",
@@ -43,7 +43,10 @@ packages_to_install = \
 "python3-setuptools",
 "wget",
 "cmake",
-"nano"
+"nano",
+"libudev-dev",
+"libusb-1.0-0-dev",
+"libhidapi-dev"
 ]
 
 nci.install_packages_debian(packages_to_install)

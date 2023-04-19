@@ -95,7 +95,7 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
                 if (wallet->IsMine(txout) != isminetype::ISMINE_NO) {
                     CTxDestination address;
                     if (ExtractDestination(txdb, txout.scriptPubKey, address) &&
-                        IsMineCheck(IsMine(*wallet, address), isminetype::ISMINE_SPENDABLE)) {
+                        IsMineCheck(IsMine(*wallet, address), isminetype::ISMINE_SPENDABLE_AVAILABLE)) {
                         if (const auto entry = wallet->mapAddressBook.get(address)) {
                             strHTML += "<b>" + tr("From") + ":</b> " + tr("unknown") + "<br>";
                             strHTML += "<b>" + tr("To") + ":</b> ";
@@ -195,7 +195,8 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
     } else {
         bool fAllFromMe = true;
         for (const CTxIn& txin : wtx.vin) {
-            fAllFromMe = fAllFromMe && IsMineCheck(wallet->IsMine(txin), isminetype::ISMINE_SPENDABLE);
+            fAllFromMe =
+                fAllFromMe && IsMineCheck(wallet->IsMine(txin), isminetype::ISMINE_SPENDABLE_AVAILABLE);
         }
 
         bool fAllToMe = true;
@@ -203,7 +204,8 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
             if (NTP1Transaction::IsTxOutputOpRet(&txout)) {
                 continue;
             }
-            fAllToMe = fAllToMe && IsMineCheck(wallet->IsMine(txout), isminetype::ISMINE_SPENDABLE);
+            fAllToMe =
+                fAllToMe && IsMineCheck(wallet->IsMine(txout), isminetype::ISMINE_SPENDABLE_AVAILABLE);
         }
 
         if (fAllFromMe) {
@@ -215,7 +217,7 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
                 if (NTP1Transaction::IsTxOutputOpRet(&txout)) {
                     continue;
                 }
-                if (IsMineCheck(wallet->IsMine(txout), isminetype::ISMINE_SPENDABLE))
+                if (IsMineCheck(wallet->IsMine(txout), isminetype::ISMINE_SPENDABLE_AVAILABLE))
                     continue;
 
                 if (!wtx.mapValue.count("to") || wtx.mapValue.at("to").empty()) {
@@ -386,11 +388,11 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
                     }
                     strHTML = strHTML + " " + tr("Amount") + "=" +
                               BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, vout.nValue);
-                    strHTML =
-                        strHTML + " IsMine=" +
-                        (IsMineCheck(wallet->IsMine(vout), isminetype::ISMINE_SPENDABLE) ? tr("true")
-                                                                                         : tr("false")) +
-                        "</li>";
+                    strHTML = strHTML + " IsMine=" +
+                              (IsMineCheck(wallet->IsMine(vout), isminetype::ISMINE_SPENDABLE_AVAILABLE)
+                                   ? tr("true")
+                                   : tr("false")) +
+                              "</li>";
                     strHTML = strHTML + " IsWatchOnly=" +
                               (IsMineCheck(wallet->IsMine(vout), isminetype::ISMINE_WATCH_ONLY)
                                    ? tr("true")

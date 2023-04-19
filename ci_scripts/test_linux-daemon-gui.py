@@ -1,6 +1,4 @@
 import os
-import urllib2
-import multiprocessing as mp
 import neblio_ci_libs as nci
 
 nci.setup_travis_or_gh_actions_env_vars()
@@ -39,7 +37,7 @@ nci.mkdir_p(os.path.join(working_dir,'.ccache', ''))
 nci.call_with_err_code('mv ' + os.path.join(working_dir,'.ccache', '') + ' ' + os.path.join(deploy_dir,'.ccache', ''))
 
 # Start Docker Container to Build nebliod or neblio-Qt
-nci.call_with_err_code('sudo docker run -e BUILD=' + build_target + ' -v ' + os.environ['BUILD_DIR'] + ':/root/vol -t neblioteam/nebliod-build-ccache')
+nci.call_with_err_code('sudo docker run -e BUILD=' + build_target + ' -v ' + os.environ['BUILD_DIR'] + ':/root/vol -t gabrielkerekesvl/nebliod-build-ccache')
 nci.call_with_err_code('sleep 15 && sudo docker kill $(sudo docker ps -q);exit 0')
 
 # move .ccache folder back to ccache dir

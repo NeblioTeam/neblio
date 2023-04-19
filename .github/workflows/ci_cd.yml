@@ -18,16 +18,16 @@ env:
 jobs:
 
   linux_daemon_cmake:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
     - name: ccache
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-linux_daemon_cmake-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-22.04-linux_daemon_cmake-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-linux_daemon_cmake-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-22.04-linux_daemon_cmake-
     - name: Set target_v env var
       run: |
         echo "target_v=linux_daemon_cmake" >> $GITHUB_ENV
@@ -42,16 +42,16 @@ jobs:
         path: /tmp/bitcoin*
 
   linux_daemon:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
     - name: ccache
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-linux_daemon-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-22.04-linux_daemon-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-linux_daemon-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-22.04-linux_daemon-
     - name: Set target_v env var
       run: |
         echo "target_v=linux_daemon" >> $GITHUB_ENV
@@ -67,19 +67,24 @@ jobs:
         files: ${{ env.SOURCE_PATH }}
         repo-token: ${{ secrets.GHAT2 }}
         release-tag: ${{ env.RELEASE_TAG }}
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: nebliod-linux.tar.gz
+        path: ${{ github.workspace }}/deploy/*nebliod*.tar.gz
 
 
   linux_wallet:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
     - name: ccache
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-linux_wallet-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-22.04-linux_wallet-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-linux_wallet-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-22.04-linux_wallet-
     - name: Set target_v env var
       run: |
         echo "target_v=linux_wallet" >> $GITHUB_ENV
@@ -94,20 +99,25 @@ jobs:
         files: ${{ env.SOURCE_PATH }}
         repo-token: ${{ secrets.GHAT2 }}
         release-tag: ${{ env.RELEASE_TAG }}
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: neblio-qt-linux.tar.gz
+        path: ${{ github.workspace }}/deploy/*neblio-Qt*.tar.gz
 
 
   linux_wallet_test:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
     - name: ccache
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-linux_wallet_test-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-22.04-linux_wallet_test-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-linux_wallet_test-
-          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-linux_wallet-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-22.04-linux_wallet_test-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-22.04-linux_wallet-
     - name: Set target_v env var
       run: |
         echo "target_v=linux_wallet_test" >> $GITHUB_ENV
@@ -117,16 +127,16 @@ jobs:
 
 
   windows_x86:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
     - name: ccache
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-windows_x86-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-22.04-windows_x86-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-windows_x86-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-22.04-windows_x86-
     - name: Build neblio-Qt for Windows x86
       run: |
         python -u ci_scripts/test_win_x86-gui_wallet.py
@@ -138,6 +148,11 @@ jobs:
         files: ${{ env.SOURCE_PATH }}
         repo-token: ${{ secrets.GHAT2 }}
         release-tag: ${{ env.RELEASE_TAG }}
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: neblio-qt-windows.zip
+        path: ${{ github.workspace }}/deploy/*neblio-Qt*.zip
 
 
   osx:
@@ -165,6 +180,11 @@ jobs:
         files: ${{ env.SOURCE_PATH }}
         repo-token: ${{ secrets.GHAT2 }}
         release-tag: ${{ env.RELEASE_TAG }}
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: neblio-qt-mac.zip
+        path: ${{ github.workspace }}/deploy/*neblio-Qt*.zip
 
 
   osx_test:
@@ -240,16 +260,16 @@ jobs:
   rpi_wallet:
     # Only Build RPi on Daily Scheduled Runs and releases as it takes a long time
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
     - name: ccache
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-rpi_wallet-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-22.04-rpi_wallet-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-rpi_wallet-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-22.04-rpi_wallet-
     - name: Set target_v env var
       run: |
         echo "target_v=rpi_wallet" >> $GITHUB_ENV
@@ -269,17 +289,17 @@ jobs:
   rpi_wallet_test:
     # Only Build RPi on Daily Scheduled Runs and releases as it takes a long time
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
     - name: ccache
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-rpi_wallet_test-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-22.04-rpi_wallet_test-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-rpi_wallet_test-
-          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-rpi_wallet-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-22.04-rpi_wallet_test-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-22.04-rpi_wallet-
     - name: Set target_v env var
       run: |
         echo "target_v=rpi_wallet_test" >> $GITHUB_ENV
@@ -297,16 +317,16 @@ jobs:
   rpi_daemon:
     # Only Build RPi on Daily Scheduled Runs and releases as it takes a long time
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
     - name: ccache
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-rpi_daemon-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-22.04-rpi_daemon-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-rpi_daemon-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-22.04-rpi_daemon-
     - name: Set target_v env var
       run: |
         echo "target_v=rpi_daemon" >> $GITHUB_ENV

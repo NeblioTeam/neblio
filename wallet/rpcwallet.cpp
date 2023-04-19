@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2010 Satoshi Nakamoto
+// Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -11,6 +11,7 @@
 #include "coldstakedelegation.h"
 #include "globals.h"
 #include "init.h"
+#include "ledgerBridge.h"
 #include "main.h"
 #include "udaddress.h"
 #include "wallet.h"
@@ -439,6 +440,9 @@ Value getnewpubkey(const Array& params, bool fHelp)
     if (!pwalletMain->IsLocked())
         pwalletMain->TopUpKeyPool();
 
+    if (pwalletMain->CheckLabelAvailability(strAccount, false) == LabelAvailability::USED_BY_LEDGER)
+        throw JSONRPCError(RPC_WALLET_ERROR, "Label used By Ledger");
+
     // Generate a new key that is added to wallet
     CPubKey newKey;
     if (!pwalletMain->GetKeyFromPool(newKey))
@@ -468,6 +472,9 @@ Value getnewaddress(const Array& params, bool fHelp)
     if (!pwalletMain->IsLocked())
         pwalletMain->TopUpKeyPool();
 
+    if (pwalletMain->CheckLabelAvailability(strAccount, false) == LabelAvailability::USED_BY_LEDGER)
+        throw JSONRPCError(RPC_WALLET_ERROR, "Label used By Ledger");
+
     // Generate a new key that is added to wallet
     CPubKey newKey;
     if (!pwalletMain->GetKeyFromPool(newKey))
@@ -478,6 +485,127 @@ Value getnewaddress(const Array& params, bool fHelp)
     pwalletMain->SetAddressBookEntry(keyID, strAccount);
 
     return CBitcoinAddress(keyID).ToString();
+}
+
+Value addledgeraddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 3)
+        throw runtime_error(
+            "addledgeraddress <accountindex> <addressindex> <label>\n"
+            "Imports a Ledger address into the wallet.  "
+            "Path m/44'/146'/<accountindex>'/0/<addressindex> is used to derive the address.");
+
+    auto accountIndex = params[0].get_int();
+    if (!ledgerbridge::LedgerBridge::ValidateAccountIndex(accountIndex))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid account index");
+
+    auto addressIndex = params[1].get_int();
+    if (!ledgerbridge::LedgerBridge::ValidateAddressIndex(addressIndex))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid address index");
+
+    auto label = AccountFromValue(params[2]);
+    if (pwalletMain->CheckLabelAvailability(label, true) != LabelAvailability::AVAILABLE)
+        throw JSONRPCError(RPC_WALLET_ERROR, "Label already exists");
+
+    auto address = pwalletMain->ImportLedgerKey(accountIndex, addressIndex);
+
+    // Add entry
+    {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        // Double-check label availability (now that we have acquired the lock)
+        if (pwalletMain->CheckLabelAvailability(label, true) != LabelAvailability::AVAILABLE)
+            throw JSONRPCError(RPC_WALLET_ERROR, "Label already exists");
+        pwalletMain->SetAddressBookEntry(CBitcoinAddress(address).Get(), label);
+    }
+
+    return address;
+}
+
+Value verifyledgeraddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 4)
+        throw runtime_error(
+            "verifyledgeraddress <accountindex> <ischange> <addressindex> <expectedaddress>\n"
+            "Verifies a Ledger address by exporting it from Ledger and comparing it to "
+            "<expectedaddress>. "
+            "Path m/44'/146'/<accountindex>'/0/<addressindex> is used to derive the address.");
+
+    auto accountIndex = params[0].get_int();
+    if (!ledgerbridge::LedgerBridge::ValidateAccountIndex(accountIndex))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid account index");
+
+    auto isChange = params[1].get_bool();
+
+    auto addressIndex = params[2].get_int();
+    if (!ledgerbridge::LedgerBridge::ValidateAddressIndex(addressIndex))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid address index");
+
+    CBitcoinAddress expectedAddress(params[3].get_str());
+    if (!expectedAddress.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid expected address");
+
+    ledgerbridge::LedgerBridge ledgerBridge;
+    auto    pubKeyBytes = ledgerBridge.GetPublicKey(accountIndex, isChange, addressIndex, true);
+    CPubKey pubKey(pubKeyBytes);
+    auto    address = CBitcoinAddress(pubKey.GetID()).ToString();
+
+    if (address != expectedAddress.ToString())
+        throw JSONRPCError(RPC_MISC_ERROR,
+                           "Address received from Ledger doesn't match <expectedaddress>.");
+
+    return address;
+}
+
+Value getledgeraccount(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error("getledgeraccount <neblioaddress or account>\n"
+                            "Returns Ledger account info.");
+
+    auto addressOrAccount = params[0].get_str();
+
+    CKeyID         keyID;
+    CTxDestination address;
+    if (CBitcoinAddress(addressOrAccount).IsValid()) {
+        // address
+        if (!CBitcoinAddress(addressOrAccount).GetKeyID(keyID))
+            throw JSONRPCError(RPC_MISC_ERROR, "Invalid address");
+        address = CTxDestination(keyID);
+    } else {
+        // label
+        auto label = AccountFromValue(addressOrAccount);
+        if (!pwalletMain->GetAddressBookEntryByLabel(label, address))
+            throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Account not found");
+
+        if (address.type() != typeid(CKeyID))
+            throw JSONRPCError(RPC_MISC_ERROR, "Invalid account type");
+
+        keyID = *boost::get<CKeyID>(&address);
+    }
+
+    CLedgerKey ledgerPaymentKey;
+    if (!pwalletMain->GetLedgerKey(keyID, ledgerPaymentKey))
+        throw JSONRPCError(RPC_MISC_ERROR, "Account is not a Ledger account");
+
+    CLedgerKey ledgerChangeKey;
+    if (!pwalletMain->GetOtherLedgerKey(keyID, ledgerChangeKey, false))
+        throw JSONRPCError(RPC_MISC_ERROR, "Corresponding Ledger change address not found");
+
+    if (!pwalletMain->HasAddressBookEntry(address))
+        throw JSONRPCError(RPC_MISC_ERROR, "Address not found in address book");
+
+    auto label          = pwalletMain->mapAddressBook.get(address).get().name;
+    auto paymentAddress = CBitcoinAddress(CTxDestination(ledgerPaymentKey.vchPubKey.GetID()));
+    auto changeAddress  = CBitcoinAddress(CTxDestination(ledgerChangeKey.vchPubKey.GetID()));
+
+    Object entry;
+    entry.push_back(Pair("label", label));
+    entry.push_back(Pair("accountindex", (int)ledgerPaymentKey.account));
+    entry.push_back(Pair("addressindex", (int)ledgerPaymentKey.index));
+    entry.push_back(Pair("address", paymentAddress.ToString()));
+    entry.push_back(Pair("changeaddress", changeAddress.ToString()));
+
+    return entry;
 }
 
 Value getrawchangeaddress(const Array& params, bool fHelp)
@@ -513,6 +641,17 @@ Value getrawchangeaddress(const Array& params, bool fHelp)
 
 CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew = false)
 {
+    // if account is a Ledger account, since we don't generate
+    // new addresses for Ledger accounts so simply return the current one
+    if (pwalletMain->IsLabelUsedByLedger(strAccount)) {
+        if (bForceNew) {
+            throw JSONRPCError(RPC_MISC_ERROR, "Error: Can't overwrite Ledger account.");
+        }
+        CTxDestination addressOut;
+        pwalletMain->GetAddressBookEntryByLabel(strAccount, addressOut);
+        return CBitcoinAddress(addressOut);
+    }
+
     CWalletDB walletdb(pwalletMain->strWalletFile);
 
     CAccount account;
@@ -585,7 +724,8 @@ Value setaccount(const Array& params, bool fHelp)
             GetAccountAddress(strOldAccount, true);
     }
 
-    pwalletMain->SetAddressBookEntry(address.Get(), strAccount);
+    if (!pwalletMain->SetAddressBookEntry(address.Get(), strAccount))
+        throw JSONRPCError(RPC_MISC_ERROR, "An error occurred while setting the account.");
 
     return Value::null;
 }
@@ -600,10 +740,24 @@ Value getaccount(const Array& params, bool fHelp)
     if (!address.IsValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
 
+    CKeyID keyID;
+    address.GetKeyID(keyID);
+
     string     strAccount;
     const auto mi = pwalletMain->mapAddressBook.get(address.Get());
-    if (mi.is_initialized() && !mi->name.empty())
+    if (mi.is_initialized() && !mi->name.empty()) {
         strAccount = mi->name;
+    } else if (pwalletMain->HaveLedgerKey(keyID)) {
+        CLedgerKey ledgerPaymentKey;
+        if (!pwalletMain->GetOtherLedgerKey(keyID, ledgerPaymentKey, true))
+            throw JSONRPCError(RPC_MISC_ERROR, "Error: Corresponding Ledger payment key not found.");
+
+        const auto miLedger = pwalletMain->mapAddressBook.get(ledgerPaymentKey.vchPubKey.GetID());
+        if (miLedger.is_initialized() && !miLedger->name.empty()) {
+            strAccount = miLedger->name;
+        }
+    }
+
     return strAccount;
 }
 
@@ -621,8 +775,18 @@ Value getaddressesbyaccount(const Array& params, bool fHelp)
     for (const auto& item : addrBook) {
         const CBitcoinAddress& address = item.first;
         const string&          strName = item.second.name;
-        if (strName == strAccount)
+        if (strName == strAccount) {
             ret.push_back(address.ToString());
+
+            CKeyID keyID;
+            address.GetKeyID(keyID);
+            // if account is a Ledger account, we also include associated change key
+            if (pwalletMain->HaveLedgerKey(keyID)) {
+                CLedgerKey ledgerChangeKey;
+                pwalletMain->GetOtherLedgerKey(keyID, ledgerChangeKey, false);
+                ret.push_back(CBitcoinAddress(ledgerChangeKey.vchPubKey.GetID()).ToString());
+            }
+        }
     }
     return ret;
 }
@@ -960,8 +1124,19 @@ void GetAccountAddresses(string strAccount, set<CTxDestination>& setAddress)
     for (const auto& item : addrBook) {
         const CTxDestination& address = item.first;
         const string&         strName = item.second.name;
-        if (strName == strAccount)
+        if (strName == strAccount) {
             setAddress.insert(address);
+
+            if (address.type() == typeid(CKeyID)) {
+                CKeyID keyID = *boost::get<CKeyID>(&address);
+                // if account is a Ledger account, we also include associated change key
+                if (pwalletMain->HaveLedgerKey(keyID)) {
+                    CLedgerKey ledgerChangeKey;
+                    pwalletMain->GetOtherLedgerKey(keyID, ledgerChangeKey, false);
+                    setAddress.insert(CTxDestination(ledgerChangeKey.vchPubKey.GetID()));
+                }
+            }
+        }
     }
 }
 
@@ -1276,7 +1451,7 @@ Value getbalance(const Array& params, bool fHelp)
         nMinDepth = params[1].get_int();
     if (params.size() > 1)
         nMinDepth = params[1].get_int();
-    isminefilter filter = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE);
+    isminefilter filter = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_AVAILABLE);
     if (params.size() > 2 && params[2].get_bool())
         filter = filter | static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY);
     if (!(params.size() > 3) || params[3].get_bool())
@@ -1520,6 +1695,10 @@ Value sendfrom(const Array& params, bool fHelp)
     if (params.size() > 5 && params[5].type() != null_type && !params[5].get_str().empty())
         wtx.mapValue["to"] = params[5].get_str();
 
+    set<CTxDestination> accountAddresses;
+    GetAccountAddresses(strAccount, accountAddresses);
+    wtx.fLedgerTx = ::IsMine(*pwalletMain, *accountAddresses.begin()) == ISMINE_LEDGER;
+
     EnsureWalletIsUnlocked();
 
     // Check funds
@@ -1642,6 +1821,9 @@ Value addmultisigaddress(const Array& params, bool fHelp)
     string       strAccount;
     if (params.size() > 2)
         strAccount = AccountFromValue(params[2]);
+
+    if (pwalletMain->CheckLabelAvailability(strAccount, false) == LabelAvailability::USED_BY_LEDGER)
+        throw JSONRPCError(RPC_WALLET_ERROR, "Label used By Ledger");
 
     // Gather public keys
     if (nRequired < 1)
@@ -1973,7 +2155,7 @@ Value listtransactions(const Array& params, bool fHelp)
     if (params.size() > 2)
         nFrom = params[2].get_int();
 
-    isminefilter filter = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE);
+    isminefilter filter = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_AVAILABLE);
     if (params.size() > 3 && params[3].get_bool())
         filter = filter | static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY);
     if (!(params.size() > 4) || params[4].get_bool())
@@ -2039,7 +2221,7 @@ Value listaccounts(const Array& params, bool fHelp)
     if (params.size() > 0)
         nMinDepth = params[0].get_int();
 
-    isminefilter includeWatchonly = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE);
+    isminefilter includeWatchonly = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_AVAILABLE);
     if (params.size() > 1 && params[1].get_bool())
         includeWatchonly = includeWatchonly | static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY);
 

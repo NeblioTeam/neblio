@@ -17,6 +17,8 @@ wallet/leveldb/build_config.mk
 debug
 .neblio
 release/
+.qtc_clangd
+.vscode
 
 #compilation and Qt preprocessor part
 *.qm
@@ -71,3 +73,9 @@ wallet/test/data/txs_ntp1tests_ntp1_txs_testnet.json
 wallet/test/data/txs_ntp1tests_raw_neblio_txs_testnet.json
 wallet/test/data/ntp1txids_to_test.txt
 wallet/test/data/ntp1txids_to_test_testnet.txt
+
+boost*/
+openssl*/
+boost_build
+openssl_build
+*.tar.gz

@@ -41,8 +41,8 @@ SignVerifyMessageDialog::SignVerifyMessageDialog(QWidget *parent) :
     ui->messageIn_VM->installEventFilter(this);
     ui->signatureIn_VM->installEventFilter(this);
 
-    ui->signatureOut_SM->setFont(GUIUtil::bitcoinAddressFont());
-    ui->signatureIn_VM->setFont(GUIUtil::bitcoinAddressFont());
+    ui->signatureOut_SM->setFont(GUIUtil::monospaceFont());
+    ui->signatureIn_VM->setFont(GUIUtil::monospaceFont());
 }
 
 SignVerifyMessageDialog::~SignVerifyMessageDialog()
@@ -90,7 +90,7 @@ void SignVerifyMessageDialog::on_addressBookButton_SM_clicked()
         dlg.setModel(model->getAddressTableModel());
         if (dlg.exec())
         {
-            setAddress_SM(dlg.getReturnValue());
+            setAddress_SM(dlg.getReturnAddress());
         }
     }
 }
@@ -179,7 +179,7 @@ void SignVerifyMessageDialog::on_addressBookButton_VM_clicked()
         dlg.setModel(model->getAddressTableModel());
         if (dlg.exec())
         {
-            setAddress_VM(dlg.getReturnValue());
+            setAddress_VM(dlg.getReturnAddress());
         }
     }
 }

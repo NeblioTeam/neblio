@@ -53,6 +53,9 @@ BitcoinAmountField::BitcoinAmountField(bool EnableNTP1Tokens, QWidget* parent)
         connect(tokenKindsComboBox,
                 static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this,
                 &BitcoinAmountField::slot_tokenChanged);
+        connect(tokenKindsComboBox,
+                static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this,
+                &BitcoinAmountField::tokenChanged);
     }
 
     setLayout(layout);
@@ -213,7 +216,7 @@ QString BitcoinAmountField::getSelectedTokenId() const
             return tokenKindsList.at(selectedIndex - 1).tokenId; // element 0 is NEBL
         }
     }
-    return "";
+    return QString::fromStdString(NTP1SendTxData::NEBL_TOKEN_ID);
 }
 
 bool BitcoinAmountField::isNTP1TokenSelected() const
