@@ -17,7 +17,6 @@
 const QString AddressTableModel::Send          = "S";
 const QString AddressTableModel::Receive       = "R";
 const QString AddressTableModel::ReceiveLedger = "RL";
-// proxyModel->setFilterFixedString(AddressTableModel::Receive);
 
 struct AddressTableEntry
 {

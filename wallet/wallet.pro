@@ -18,6 +18,7 @@ mac {
 	QMAKE_INFO_PLIST = $${NEBLIO_ROOT}/wallet/qt/res/Info.plist
 }
 
+
 # use: qmake "NEBLIO_REST=1"
 contains(NEBLIO_REST, 1) {
     DEFINES += NEBLIO_REST

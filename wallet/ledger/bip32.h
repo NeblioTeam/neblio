@@ -20,7 +20,6 @@ public:
     const int BIP32_PURPOSE   = 44;
     const int BIP32_COIN_TYPE = 146;
 
-    Bip32Path(const std::string& keyPath);
     Bip32Path(uint32_t account);
     Bip32Path(const std::string& account, bool isChange, const std::string& index);
     Bip32Path(uint32_t account, bool isChange, uint32_t index);
